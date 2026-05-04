@@ -1,11 +1,5 @@
-//
-//  iPerfApp.swift
-//  iPerf
-//
-//  Created by Curtis Netterville on 5/4/26.
-//
-
 import SwiftUI
+import SwiftData
 
 @main
 struct iPerfApp: App {
@@ -13,5 +7,7 @@ struct iPerfApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: TestResult.self)
+        .defaultSize(width: 900, height: 650)
     }
 }

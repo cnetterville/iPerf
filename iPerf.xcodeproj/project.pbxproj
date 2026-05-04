@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E9F468F72FA93D910067F238 /* IperfSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E9F468F62FA93D910067F238 /* IperfSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		E9F468E72FA93D7B0067F238 /* iPerf.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iPerf.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9F468F72FA93D910067F238 /* IperfSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = iPerf;
 			packageProductDependencies = (
+				E9F468F62FA93D910067F238 /* IperfSwift */,
 			);
 			productName = iPerf;
 			productReference = E9F468E72FA93D7B0067F238 /* iPerf.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = E9F468DE2FA93D7B0067F238;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E9F468F52FA93D910067F238 /* XCRemoteSwiftPackageReference "iperf-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E9F468E82FA93D7B0067F238 /* Products */;
 			projectDirPath = "";
@@ -256,8 +265,18 @@
 				DEVELOPMENT_TEAM = 88WW82MVFX;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -288,8 +307,18 @@
 				DEVELOPMENT_TEAM = 88WW82MVFX;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -331,6 +360,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E9F468F52FA93D910067F238 /* XCRemoteSwiftPackageReference "iperf-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/igorskh/iperf-swift";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E9F468F62FA93D910067F238 /* IperfSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F468F52FA93D910067F238 /* XCRemoteSwiftPackageReference "iperf-swift" */;
+			productName = IperfSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E9F468DF2FA93D7B0067F238 /* Project object */;
 }
