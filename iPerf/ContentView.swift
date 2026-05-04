@@ -8,7 +8,8 @@ enum SidebarItem: Hashable {
 }
 
 struct ContentView: View {
-    @State private var testRunner = IperfTestRunner()
+    var testRunner: IperfTestRunner
+    var serverRunner: IperfTestRunner
     @State private var selectedItem: SidebarItem? = .speedTest
     @Query(sort: \TestResult.date, order: .reverse) private var testResults: [TestResult]
     @Environment(\.modelContext) private var modelContext
@@ -26,8 +27,16 @@ struct ContentView: View {
             Section("Tools") {
                 Label("Speed Test", systemImage: "gauge.with.dots.needle.33percent")
                     .tag(SidebarItem.speedTest)
-                Label("Server Mode", systemImage: "server.rack")
-                    .tag(SidebarItem.serverMode)
+                HStack {
+                    Label("Server Mode", systemImage: "server.rack")
+                    Spacer()
+                    if serverRunner.isRunning && serverRunner.isServerMode {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 8, height: 8)
+                    }
+                }
+                .tag(SidebarItem.serverMode)
             }
 
             Section("History") {
@@ -54,7 +63,7 @@ struct ContentView: View {
         case .speedTest:
             SpeedTestView(runner: testRunner)
         case .serverMode:
-            ServerModeView(runner: testRunner)
+            ServerModeView(runner: serverRunner)
         case .result(let result):
             TestDetailView(result: result)
         case nil:
@@ -101,6 +110,6 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(testRunner: IperfTestRunner(), serverRunner: IperfTestRunner())
         .modelContainer(for: TestResult.self, inMemory: true)
 }

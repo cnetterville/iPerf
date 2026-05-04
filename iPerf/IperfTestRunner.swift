@@ -16,6 +16,7 @@ final class IperfTestRunner {
     var totalPacketsSent: Int = 0
     var lastRtt: Double = 0
     var isServerMode: Bool = false
+    var serverPort: Int = 5201
 
     private var runner: IperfRunner?
     private var startTime: Date?
@@ -92,6 +93,7 @@ final class IperfTestRunner {
         reset()
         isRunning = true
         isServerMode = true
+        serverPort = port
         stateDescription = "Listening on port \(port)..."
 
         var config = IperfConfiguration()
