@@ -90,7 +90,7 @@ struct SpeedTestView: View {
                     Text("Port")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    TextField("port", value: $port, format: .number)
+                    TextField("port", value: $port, format: .number.grouping(.never))
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 100)
                 }
