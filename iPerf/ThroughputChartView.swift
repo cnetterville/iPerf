@@ -17,8 +17,22 @@ struct ThroughputChartView: View {
         useGbps ? mbps / 1000 : mbps
     }
 
+    private var chartPoints: [DataPoint] {
+        guard let first = dataPoints.first else { return dataPoints }
+        if first.timestamp > 0.5 {
+            var points = [DataPoint(timestamp: 0, throughputMbps: 0)]
+            points.append(contentsOf: dataPoints)
+            return points
+        }
+        return dataPoints
+    }
+
+    private var xMax: Double {
+        dataPoints.map(\.timestamp).max() ?? 10
+    }
+
     var body: some View {
-        Chart(dataPoints) { point in
+        Chart(chartPoints) { point in
             AreaMark(
                 x: .value("Time", point.timestamp),
                 y: .value("Throughput", scaledValue(point.throughputMbps))
@@ -40,6 +54,7 @@ struct ThroughputChartView: View {
             .lineStyle(StrokeStyle(lineWidth: 2))
             .interpolationMethod(.catmullRom)
         }
+        .chartXScale(domain: 0...xMax)
         .chartXAxisLabel("Time (s)")
         .chartYAxisLabel(useGbps ? "Gbps" : "Mbps")
         .chartYScale(domain: .automatic(includesZero: true))

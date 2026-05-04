@@ -12,6 +12,17 @@ struct SpeedTestView: View {
     @State private var streamCount = 3
     @State private var duration: Double = 10
     @State private var showingError = false
+    @Query(sort: \TestResult.date, order: .reverse) private var testResults: [TestResult]
+
+    private var previousAddresses: [String] {
+        var seen = Set<String>()
+        return testResults.compactMap { result in
+            let addr = result.serverAddress
+            guard !addr.isEmpty, !seen.contains(addr) else { return nil }
+            seen.insert(addr)
+            return addr
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -55,8 +66,24 @@ struct SpeedTestView: View {
                     Text("Server Address")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    TextField("hostname or IP", text: $serverAddress)
-                        .textFieldStyle(.roundedBorder)
+                    HStack(spacing: 4) {
+                        TextField("hostname or IP", text: $serverAddress)
+                            .textFieldStyle(.roundedBorder)
+                        if !previousAddresses.isEmpty {
+                            Menu {
+                                ForEach(previousAddresses, id: \.self) { address in
+                                    Button(address) {
+                                        serverAddress = address
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .frame(width: 24)
+                        }
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
