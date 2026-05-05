@@ -100,6 +100,7 @@ final class IperfTestRunner {
         stateDescription = "Listening on port \(port)..."
 
         var config = IperfConfiguration()
+        config.address = nil
         config.port = port
         config.role = .server
 
