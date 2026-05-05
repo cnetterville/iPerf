@@ -1,7 +1,11 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct TestDetailView: View {
     let result: TestResult
+    @State private var showingExporter = false
+    @State private var exportFormat: ExportFormat = .csv
+    @State private var copied = false
 
     var body: some View {
         ScrollView {
@@ -22,6 +26,44 @@ struct TestDetailView: View {
             .padding(24)
         }
         .navigationTitle("Test Result")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                HStack(spacing: 8) {
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(result.summaryText, forType: .string)
+                        copied = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
+                    } label: {
+                        Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    }
+
+                    Menu {
+                        Button("Export CSV...") {
+                            exportFormat = .csv
+                            showingExporter = true
+                        }
+                        Button("Export JSON...") {
+                            exportFormat = .json
+                            showingExporter = true
+                        }
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+        }
+        .fileExporter(
+            isPresented: $showingExporter,
+            document: TestExportDocument(
+                content: exportFormat == .csv
+                    ? TestResult.csvHeader + "\n" + result.toCSVRow()
+                    : result.toJSON(),
+                format: exportFormat
+            ),
+            contentType: exportFormat == .csv ? .commaSeparatedText : .json,
+            defaultFilename: "iperf-result-\(result.date.formatted(.iso8601.year().month().day()))"
+        ) { _ in }
     }
 
     private var summaryCard: some View {
@@ -103,5 +145,30 @@ struct TestDetailView: View {
             return String(format: "%.2f Gbps", mbps / 1000)
         }
         return String(format: "%.1f Mbps", mbps)
+    }
+}
+
+enum ExportFormat {
+    case csv, json
+}
+
+struct TestExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.commaSeparatedText, .json] }
+
+    let content: String
+    let format: ExportFormat
+
+    init(content: String, format: ExportFormat) {
+        self.content = content
+        self.format = format
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        content = ""
+        format = .csv
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: Data(content.utf8))
     }
 }

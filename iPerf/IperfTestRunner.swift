@@ -57,7 +57,8 @@ final class IperfTestRunner {
         protocolType: String,
         direction: String,
         streams: Int,
-        duration: TimeInterval
+        duration: TimeInterval,
+        rate: UInt64? = nil
     ) {
         reset()
         isRunning = true
@@ -72,6 +73,7 @@ final class IperfTestRunner {
         config.reverse = direction == "Download" ? .download : .upload
         config.numStreams = streams
         config.duration = duration
+        if let rate { config.rate = rate }
 
         let newRunner = IperfRunner(with: config)
         self.runner = newRunner

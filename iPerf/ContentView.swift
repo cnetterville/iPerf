@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 enum SidebarItem: Hashable {
     case speedTest
@@ -11,6 +12,8 @@ struct ContentView: View {
     var testRunner: IperfTestRunner
     var serverRunner: IperfTestRunner
     @State private var selectedItem: SidebarItem? = .speedTest
+    @State private var showingExporter = false
+    @State private var exportFormat: ExportFormat = .csv
     @Query(sort: \TestResult.date, order: .reverse) private var testResults: [TestResult]
     @Environment(\.modelContext) private var modelContext
 
@@ -55,6 +58,33 @@ struct ContentView: View {
         }
         .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 350)
         .navigationTitle("iPerf")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                if !testResults.isEmpty {
+                    Menu {
+                        Button("Export All as CSV...") {
+                            exportFormat = .csv
+                            showingExporter = true
+                        }
+                        Button("Export All as JSON...") {
+                            exportFormat = .json
+                            showingExporter = true
+                        }
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+        }
+        .fileExporter(
+            isPresented: $showingExporter,
+            document: TestExportDocument(
+                content: exportAllResults(),
+                format: exportFormat
+            ),
+            contentType: exportFormat == .csv ? .commaSeparatedText : .json,
+            defaultFilename: "iperf-results-\(Date().formatted(.iso8601.year().month().day()))"
+        ) { _ in }
     }
 
     @ViewBuilder
@@ -105,6 +135,15 @@ struct ContentView: View {
     private func deleteResults(at offsets: IndexSet) {
         for index in offsets {
             modelContext.delete(testResults[index])
+        }
+    }
+
+    private func exportAllResults() -> String {
+        if exportFormat == .csv {
+            return TestResult.csvHeader + "\n" + testResults.map { $0.toCSVRow() }.joined(separator: "\n")
+        } else {
+            let jsonArray = "[" + testResults.map { $0.toJSON() }.joined(separator: ",\n") + "]"
+            return jsonArray
         }
     }
 }

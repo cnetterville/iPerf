@@ -11,6 +11,8 @@ struct SpeedTestView: View {
     @State private var selectedDirection = "Download"
     @State private var streamCount = 3
     @State private var duration: Double = 10
+    @State private var bandwidthLimit: Double = 1
+    @State private var bandwidthUnit = "Mbps"
     @State private var showingError = false
     @Query(sort: \TestResult.date, order: .reverse) private var testResults: [TestResult]
 
@@ -139,6 +141,27 @@ struct SpeedTestView: View {
                         .frame(width: 140)
                 }
             }
+
+            if selectedProtocol == "UDP" {
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Bandwidth Limit")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            TextField("Rate", value: $bandwidthLimit, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 100)
+                            Picker("Unit", selection: $bandwidthUnit) {
+                                Text("Mbps").tag("Mbps")
+                                Text("Gbps").tag("Gbps")
+                            }
+                            .labelsHidden()
+                            .frame(width: 80)
+                        }
+                    }
+                }
+            }
         }
         .padding()
         .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
@@ -254,6 +277,11 @@ struct SpeedTestView: View {
 
     // MARK: - Actions
 
+    private var bandwidthBitsPerSecond: UInt64 {
+        let mbps = bandwidthUnit == "Gbps" ? bandwidthLimit * 1000 : bandwidthLimit
+        return UInt64(mbps * 1_000_000)
+    }
+
     private func startTest() {
         runner.startClient(
             address: serverAddress,
@@ -261,7 +289,8 @@ struct SpeedTestView: View {
             protocolType: selectedProtocol,
             direction: selectedDirection,
             streams: streamCount,
-            duration: duration
+            duration: duration,
+            rate: selectedProtocol == "UDP" ? bandwidthBitsPerSecond : nil
         )
     }
 
