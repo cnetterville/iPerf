@@ -30,7 +30,7 @@ struct ServerMenuContent: View {
 
     var body: some View {
         if runner.isRunning && runner.isServerMode {
-            Text("Server Running — Port \(runner.serverPort)")
+            Text("Server Running — Port \(runner.serverPort, format: .number.grouping(.never))")
             Divider()
             Button("Stop Server") {
                 runner.stop()
@@ -38,7 +38,7 @@ struct ServerMenuContent: View {
         } else {
             Text("Server Stopped")
             Divider()
-            Button("Start Server (Port \(runner.serverPort))") {
+            Button("Start Server (Port \(runner.serverPort, format: .number.grouping(.never)))") {
                 runner.startServer(port: runner.serverPort)
             }
         }

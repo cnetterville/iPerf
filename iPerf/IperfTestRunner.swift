@@ -20,6 +20,7 @@ final class IperfTestRunner {
 
     private var runner: IperfRunner?
     private var startTime: Date?
+    private var stoppedByUser = false
 
     var averageThroughputMbps: Double {
         guard !dataPoints.isEmpty else { return 0 }
@@ -118,14 +119,14 @@ final class IperfTestRunner {
     }
 
     func stop() {
+        stoppedByUser = true
         runner?.stop()
         isRunning = false
-        if stateDescription != "Error" {
-            stateDescription = "Stopped"
-        }
+        stateDescription = "Ready"
     }
 
     private func reset() {
+        stoppedByUser = false
         dataPoints = []
         currentThroughputMbps = 0
         totalBytesTransferred = 0
@@ -159,12 +160,14 @@ final class IperfTestRunner {
     }
 
     private func handleError(_ error: IperfError) {
+        guard !stoppedByUser else { return }
         errorMessage = String(describing: error)
         isRunning = false
         stateDescription = "Error"
     }
 
     private func handleState(_ state: IperfRunnerState) {
+        guard !stoppedByUser else { return }
         switch state {
         case .running:
             stateDescription = "Running"
@@ -174,10 +177,8 @@ final class IperfTestRunner {
         case .initialising:
             stateDescription = "Initializing..."
         case .error:
-            if stateDescription != "Error" {
-                isRunning = false
-                stateDescription = "Error"
-            }
+            isRunning = false
+            stateDescription = "Error"
         case .stopping:
             stateDescription = "Stopping..."
         default:

@@ -11,7 +11,7 @@ struct ServerModeView: View {
                     Text("Listen Port")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    TextField("Port", value: $port, format: .number)
+                    TextField("Port", value: $port, format: .number.grouping(.never))
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 120)
                 }
