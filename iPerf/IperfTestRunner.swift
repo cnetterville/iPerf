@@ -19,8 +19,10 @@ final class IperfTestRunner {
     var serverPort: Int = 5201
 
     private var runner: IperfRunner?
+    private var runnerID = UUID()
     private var startTime: Date?
     private var stoppedByUser = false
+    private var pendingRestart = false
 
     var averageThroughputMbps: Double {
         guard !dataPoints.isEmpty else { return 0 }
@@ -73,21 +75,27 @@ final class IperfTestRunner {
         config.reverse = direction == "Download" ? .download : .upload
         config.numStreams = streams
         config.duration = duration
+        config.reporterInterval = 0.5
+        config.timeout = 10
         if let rate { config.rate = rate }
 
         let newRunner = IperfRunner(with: config)
         self.runner = newRunner
+        let id = runnerID
         startTime = Date()
 
         newRunner.start(
             { [weak self] result in
-                self?.handleResult(result)
+                guard let self, self.runnerID == id else { return }
+                self.handleResult(result)
             },
             { [weak self] error in
-                self?.handleError(error)
+                guard let self, self.runnerID == id else { return }
+                self.handleError(error)
             },
             { [weak self] state in
-                self?.handleState(state)
+                guard let self, self.runnerID == id else { return }
+                self.handleState(state)
             }
         )
     }
@@ -106,30 +114,40 @@ final class IperfTestRunner {
 
         let newRunner = IperfRunner(with: config)
         self.runner = newRunner
+        let id = runnerID
         startTime = Date()
 
         newRunner.start(
             { [weak self] result in
-                self?.handleResult(result)
+                guard let self, self.runnerID == id else { return }
+                self.handleResult(result)
             },
             { [weak self] error in
-                self?.handleError(error)
+                guard let self, self.runnerID == id else { return }
+                self.handleError(error)
             },
             { [weak self] state in
-                self?.handleState(state)
+                guard let self, self.runnerID == id else { return }
+                self.handleState(state)
             }
         )
     }
 
     func stop() {
         stoppedByUser = true
+        pendingRestart = false
         runner?.stop()
+        runner = nil
         isRunning = false
         stateDescription = "Ready"
     }
 
     private func reset() {
+        runner?.stop()
+        runner = nil
+        runnerID = UUID()
         stoppedByUser = false
+        pendingRestart = false
         dataPoints = []
         currentThroughputMbps = 0
         totalBytesTransferred = 0
@@ -164,6 +182,10 @@ final class IperfTestRunner {
 
     private func handleError(_ error: IperfError) {
         guard !stoppedByUser else { return }
+        if isServerMode {
+            scheduleServerRestart()
+            return
+        }
         errorMessage = String(describing: error)
         isRunning = false
         stateDescription = "Error"
@@ -175,17 +197,68 @@ final class IperfTestRunner {
         case .running:
             stateDescription = "Running"
         case .finished:
-            isRunning = false
-            stateDescription = "Completed"
+            if isServerMode {
+                scheduleServerRestart()
+            } else {
+                isRunning = false
+                stateDescription = "Completed"
+            }
         case .initialising:
             stateDescription = "Initializing..."
         case .error:
-            isRunning = false
-            stateDescription = "Error"
+            if isServerMode {
+                scheduleServerRestart()
+            } else {
+                isRunning = false
+                stateDescription = "Error"
+            }
         case .stopping:
             stateDescription = "Stopping..."
         default:
             break
+        }
+    }
+
+    private func scheduleServerRestart() {
+        guard !pendingRestart && !stoppedByUser else { return }
+        pendingRestart = true
+        runner?.stop()
+        runner = nil
+        runnerID = UUID()
+        stateDescription = "Listening on port \(serverPort)..."
+        dataPoints = []
+        currentThroughputMbps = 0
+        totalBytesTransferred = 0
+        elapsedTime = 0
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self, self.isServerMode, !self.stoppedByUser else { return }
+            self.pendingRestart = false
+
+            var config = IperfConfiguration()
+            config.address = nil
+            config.port = self.serverPort
+            config.role = .server
+
+            let newRunner = IperfRunner(with: config)
+            self.runner = newRunner
+            let id = self.runnerID
+            self.startTime = Date()
+
+            newRunner.start(
+                { [weak self] result in
+                    guard let self, self.runnerID == id else { return }
+                    self.handleResult(result)
+                },
+                { [weak self] error in
+                    guard let self, self.runnerID == id else { return }
+                    self.handleError(error)
+                },
+                { [weak self] state in
+                    guard let self, self.runnerID == id else { return }
+                    self.handleState(state)
+                }
+            )
         }
     }
 }
