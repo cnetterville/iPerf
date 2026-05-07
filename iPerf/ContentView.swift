@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var selectedItem: SidebarItem? = .speedTest
     @State private var showingExporter = false
     @State private var exportFormat: ExportFormat = .csv
+    @State private var showingClearConfirmation = false
     @Query(sort: \TestResult.date, order: .reverse) private var testResults: [TestResult]
     @Environment(\.modelContext) private var modelContext
 
@@ -51,8 +52,15 @@ struct ContentView: View {
                     ForEach(testResults) { result in
                         historyRow(result)
                             .tag(SidebarItem.result(result))
+                            .contextMenu {
+                                Button("Delete", role: .destructive) {
+                                    if case .result(let selected) = selectedItem, selected == result {
+                                        selectedItem = .speedTest
+                                    }
+                                    modelContext.delete(result)
+                                }
+                            }
                     }
-                    .onDelete(perform: deleteResults)
                 }
             }
         }
@@ -70,6 +78,10 @@ struct ContentView: View {
                             exportFormat = .json
                             showingExporter = true
                         }
+                        Divider()
+                        Button("Clear All History...", role: .destructive) {
+                            showingClearConfirmation = true
+                        }
                     } label: {
                         Label("Export", systemImage: "square.and.arrow.up")
                     }
@@ -85,6 +97,14 @@ struct ContentView: View {
             contentType: exportFormat == .csv ? .commaSeparatedText : .json,
             defaultFilename: "iperf-results-\(Date().formatted(.iso8601.year().month().day()))"
         ) { _ in }
+        .confirmationDialog("Clear all test history?", isPresented: $showingClearConfirmation) {
+            Button("Clear All", role: .destructive) {
+                selectedItem = .speedTest
+                for result in testResults {
+                    modelContext.delete(result)
+                }
+            }
+        }
     }
 
     @ViewBuilder
