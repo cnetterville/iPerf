@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E91342F12FD6515D007ACE82 /* IperfSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E91342F02FD6515D007ACE82 /* IperfSwift */; };
+		E93260DB2FF56FC300339FBB /* IperfSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E93260DA2FF56FC300339FBB /* IperfSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E91342F12FD6515D007ACE82 /* IperfSwift in Frameworks */,
+				E93260DB2FF56FC300339FBB /* IperfSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +70,7 @@
 			);
 			name = iPerf;
 			packageProductDependencies = (
-				E91342F02FD6515D007ACE82 /* IperfSwift */,
+				E93260DA2FF56FC300339FBB /* IperfSwift */,
 			);
 			productName = iPerf;
 			productReference = E9F468E72FA93D7B0067F238 /* iPerf.app */;
@@ -101,7 +101,7 @@
 			mainGroup = E9F468DE2FA93D7B0067F238;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				E91342EF2FD6515D007ACE82 /* XCRemoteSwiftPackageReference "iperf-swift" */,
+				E93260D92FF56FC300339FBB /* XCLocalSwiftPackageReference "IperfSwift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E9F468E82FA93D7B0067F238 /* Products */;
@@ -369,21 +369,16 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		E91342EF2FD6515D007ACE82 /* XCRemoteSwiftPackageReference "iperf-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/igorskh/iperf-swift";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		E93260D92FF56FC300339FBB /* XCLocalSwiftPackageReference "IperfSwift" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = IperfSwift;
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		E91342F02FD6515D007ACE82 /* IperfSwift */ = {
+		E93260DA2FF56FC300339FBB /* IperfSwift */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E91342EF2FD6515D007ACE82 /* XCRemoteSwiftPackageReference "iperf-swift" */;
 			productName = IperfSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
