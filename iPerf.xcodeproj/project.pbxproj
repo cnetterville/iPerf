@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E9F468F72FA93D910067F238 /* IperfSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E9F468F62FA93D910067F238 /* IperfSwift */; };
+		E91342F12FD6515D007ACE82 /* IperfSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E91342F02FD6515D007ACE82 /* IperfSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E9F468F72FA93D910067F238 /* IperfSwift in Frameworks */,
+				E91342F12FD6515D007ACE82 /* IperfSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +70,7 @@
 			);
 			name = iPerf;
 			packageProductDependencies = (
-				E9F468F62FA93D910067F238 /* IperfSwift */,
+				E91342F02FD6515D007ACE82 /* IperfSwift */,
 			);
 			productName = iPerf;
 			productReference = E9F468E72FA93D7B0067F238 /* iPerf.app */;
@@ -84,7 +84,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2640;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					E9F468E62FA93D7B0067F238 = {
 						CreatedOnToolsVersion = 26.4.1;
@@ -101,7 +101,7 @@
 			mainGroup = E9F468DE2FA93D7B0067F238;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				E9F468F52FA93D910067F238 /* XCRemoteSwiftPackageReference "iperf-swift" */,
+				E91342EF2FD6515D007ACE82 /* XCRemoteSwiftPackageReference "iperf-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E9F468E82FA93D7B0067F238 /* Products */;
@@ -168,6 +168,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 88WW82MVFX;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -193,6 +194,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -232,6 +234,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 88WW82MVFX;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -250,6 +253,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -262,6 +266,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 88WW82MVFX;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -278,6 +283,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -304,6 +310,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 88WW82MVFX;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -320,6 +327,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -362,7 +370,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		E9F468F52FA93D910067F238 /* XCRemoteSwiftPackageReference "iperf-swift" */ = {
+		E91342EF2FD6515D007ACE82 /* XCRemoteSwiftPackageReference "iperf-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/igorskh/iperf-swift";
 			requirement = {
@@ -373,9 +381,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		E9F468F62FA93D910067F238 /* IperfSwift */ = {
+		E91342F02FD6515D007ACE82 /* IperfSwift */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E9F468F52FA93D910067F238 /* XCRemoteSwiftPackageReference "iperf-swift" */;
+			package = E91342EF2FD6515D007ACE82 /* XCRemoteSwiftPackageReference "iperf-swift" */;
 			productName = IperfSwift;
 		};
 /* End XCSwiftPackageProductDependency section */

@@ -15,8 +15,41 @@ struct ContentView: View {
     @State private var showingExporter = false
     @State private var exportFormat: ExportFormat = .csv
     @State private var showingClearConfirmation = false
+    @State private var searchText = ""
     @Query(sort: \TestResult.date, order: .reverse) private var testResults: [TestResult]
     @Environment(\.modelContext) private var modelContext
+
+    private var filteredResults: [TestResult] {
+        guard !searchText.isEmpty else { return testResults }
+        let needle = searchText.lowercased()
+        return testResults.filter {
+            $0.serverAddress.lowercased().contains(needle)
+                || $0.protocolName.lowercased().contains(needle)
+                || $0.direction.lowercased().contains(needle)
+        }
+    }
+
+    private var groupedResults: [(title: String, results: [TestResult])] {
+        let calendar = Calendar.current
+        let now = Date()
+        var buckets: [(String, [TestResult])] = [
+            ("Today", []), ("Yesterday", []), ("This Week", []), ("This Month", []), ("Older", [])
+        ]
+        for result in filteredResults {
+            if calendar.isDateInToday(result.date) {
+                buckets[0].1.append(result)
+            } else if calendar.isDateInYesterday(result.date) {
+                buckets[1].1.append(result)
+            } else if calendar.isDate(result.date, equalTo: now, toGranularity: .weekOfYear) {
+                buckets[2].1.append(result)
+            } else if calendar.isDate(result.date, equalTo: now, toGranularity: .month) {
+                buckets[3].1.append(result)
+            } else {
+                buckets[4].1.append(result)
+            }
+        }
+        return buckets.filter { !$0.1.isEmpty }
+    }
 
     var body: some View {
         NavigationSplitView {
@@ -43,27 +76,38 @@ struct ContentView: View {
                 .tag(SidebarItem.serverMode)
             }
 
-            Section("History") {
-                if testResults.isEmpty {
+            if testResults.isEmpty {
+                Section("History") {
                     Text("No tests yet")
                         .foregroundStyle(.tertiary)
                         .font(.subheadline)
-                } else {
-                    ForEach(testResults) { result in
-                        historyRow(result)
-                            .tag(SidebarItem.result(result))
-                            .contextMenu {
-                                Button("Delete", role: .destructive) {
-                                    if case .result(let selected) = selectedItem, selected == result {
-                                        selectedItem = .speedTest
+                }
+            } else if groupedResults.isEmpty {
+                Section("History") {
+                    Text("No matches")
+                        .foregroundStyle(.tertiary)
+                        .font(.subheadline)
+                }
+            } else {
+                ForEach(groupedResults, id: \.title) { group in
+                    Section(group.title) {
+                        ForEach(group.results) { result in
+                            historyRow(result)
+                                .tag(SidebarItem.result(result))
+                                .contextMenu {
+                                    Button("Delete", role: .destructive) {
+                                        if case .result(let selected) = selectedItem, selected == result {
+                                            selectedItem = .speedTest
+                                        }
+                                        modelContext.delete(result)
                                     }
-                                    modelContext.delete(result)
                                 }
-                            }
+                        }
                     }
                 }
             }
         }
+        .searchable(text: $searchText, placement: .sidebar, prompt: "Search history")
         .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 350)
         .navigationTitle("iPerf")
         .toolbar {
@@ -146,15 +190,11 @@ struct ContentView: View {
 
             Spacer()
 
-            Text(result.date, format: .dateTime.month(.abbreviated).day())
+            Text(result.date, format: Calendar.current.isDate(result.date, equalTo: .now, toGranularity: .year)
+                    ? .dateTime.month(.abbreviated).day()
+                    : .dateTime.month(.abbreviated).day().year())
                 .font(.caption)
                 .foregroundStyle(.tertiary)
-        }
-    }
-
-    private func deleteResults(at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(testResults[index])
         }
     }
 

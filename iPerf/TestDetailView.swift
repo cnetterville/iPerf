@@ -95,10 +95,6 @@ struct TestDetailView: View {
                 statValue("\(result.serverAddress):\(result.port)")
             }
             GridRow {
-                statLabel("Average Speed")
-                statValue(result.formattedThroughput)
-            }
-            GridRow {
                 statLabel("Max Speed")
                 statValue(formatSpeed(result.maxThroughputMbps))
             }
@@ -140,12 +136,6 @@ struct TestDetailView: View {
             .fontWeight(.medium)
     }
 
-    private func formatSpeed(_ mbps: Double) -> String {
-        if mbps >= 1000 {
-            return String(format: "%.2f Gbps", mbps / 1000)
-        }
-        return String(format: "%.1f Mbps", mbps)
-    }
 }
 
 enum ExportFormat {

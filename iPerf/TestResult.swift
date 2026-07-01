@@ -80,7 +80,7 @@ final class TestResult {
             "Streams: \(streamCount)",
             "Duration: \(String(format: "%.0fs", testDuration))",
             "Average: \(formattedThroughput)",
-            "Max: \(formatSpeedValue(maxThroughputMbps))",
+            "Max: \(formatSpeed(maxThroughputMbps))",
             "Transferred: \(ByteCountFormatter.string(fromByteCount: Int64(totalBytes), countStyle: .binary))"
         ]
         if protocolName == "UDP" {
@@ -122,10 +122,11 @@ final class TestResult {
         return String(data: data, encoding: .utf8) ?? "{}"
     }
 
-    private func formatSpeedValue(_ mbps: Double) -> String {
-        if mbps >= 1000 {
-            return String(format: "%.2f Gbps", mbps / 1000)
-        }
-        return String(format: "%.1f Mbps", mbps)
+}
+
+func formatSpeed(_ mbps: Double) -> String {
+    if mbps >= 1000 {
+        return String(format: "%.2f Gbps", mbps / 1000)
     }
+    return String(format: "%.1f Mbps", mbps)
 }

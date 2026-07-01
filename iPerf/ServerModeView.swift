@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ServerModeView: View {
     var runner: IperfTestRunner
-    @State private var port = 5201
+    @AppStorage("server.port") private var port = 5201
 
     var body: some View {
         ScrollView {
@@ -71,27 +71,34 @@ struct ServerModeView: View {
                     .padding()
                     .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
 
-                    HStack(spacing: 32) {
-                        VStack(spacing: 4) {
-                            Text(runner.formattedBytes)
-                                .font(.headline.monospacedDigit())
-                            Text("Transferred")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        VStack(spacing: 4) {
-                            Text(String(format: "%.1fs", runner.elapsedTime))
-                                .font(.headline.monospacedDigit())
-                            Text("Duration")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
+                    HStack(spacing: 0) {
+                        statItem(title: "Duration", value: String(format: "%.1fs", runner.elapsedTime), icon: "clock")
+                        Divider().frame(height: 44)
+                        statItem(title: "Transferred", value: runner.formattedBytes, icon: "arrow.left.arrow.right")
+                        Divider().frame(height: 44)
+                        statItem(title: "Avg Speed", value: formatSpeed(runner.averageThroughputMbps), icon: "gauge.with.dots.needle.50percent")
                     }
+                    .padding()
+                    .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
                 }
             }
             .padding(24)
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Server Mode")
+    }
+
+    private func statItem(title: String, value: String, icon: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.headline.monospacedDigit())
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }

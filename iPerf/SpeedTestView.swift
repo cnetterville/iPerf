@@ -5,14 +5,14 @@ struct SpeedTestView: View {
     var runner: IperfTestRunner
     @Environment(\.modelContext) private var modelContext
 
-    @State private var serverAddress = "192.168.1.1"
-    @State private var port = 5201
-    @State private var selectedProtocol = "TCP"
-    @State private var selectedDirection = "Download"
-    @State private var streamCount = 3
-    @State private var duration: Double = 10
-    @State private var bandwidthLimit: Double = 1
-    @State private var bandwidthUnit = "Mbps"
+    @AppStorage("client.serverAddress") private var serverAddress = "192.168.1.1"
+    @AppStorage("client.port") private var port = 5201
+    @AppStorage("client.protocol") private var selectedProtocol = "TCP"
+    @AppStorage("client.direction") private var selectedDirection = "Download"
+    @AppStorage("client.streamCount") private var streamCount = 3
+    @AppStorage("client.duration") private var duration: Double = 10
+    @AppStorage("client.bandwidthLimit") private var bandwidthLimit: Double = 1
+    @AppStorage("client.bandwidthUnit") private var bandwidthUnit = "Mbps"
     @State private var showingError = false
     @Query(sort: \TestResult.date, order: .reverse) private var testResults: [TestResult]
 
@@ -314,10 +314,4 @@ struct SpeedTestView: View {
         modelContext.insert(result)
     }
 
-    private func formatSpeed(_ mbps: Double) -> String {
-        if mbps >= 1000 {
-            return String(format: "%.1f Gbps", mbps / 1000)
-        }
-        return String(format: "%.1f Mbps", mbps)
-    }
 }

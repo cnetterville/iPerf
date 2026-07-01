@@ -79,25 +79,7 @@ final class IperfTestRunner {
         config.timeout = 10
         if let rate { config.rate = rate }
 
-        let newRunner = IperfRunner(with: config)
-        self.runner = newRunner
-        let id = runnerID
-        startTime = Date()
-
-        newRunner.start(
-            { [weak self] result in
-                guard let self, self.runnerID == id else { return }
-                self.handleResult(result)
-            },
-            { [weak self] error in
-                guard let self, self.runnerID == id else { return }
-                self.handleError(error)
-            },
-            { [weak self] state in
-                guard let self, self.runnerID == id else { return }
-                self.handleState(state)
-            }
-        )
+        startRunner(with: config)
     }
 
     func startServer(port: Int) {
@@ -112,25 +94,7 @@ final class IperfTestRunner {
         config.port = port
         config.role = .server
 
-        let newRunner = IperfRunner(with: config)
-        self.runner = newRunner
-        let id = runnerID
-        startTime = Date()
-
-        newRunner.start(
-            { [weak self] result in
-                guard let self, self.runnerID == id else { return }
-                self.handleResult(result)
-            },
-            { [weak self] error in
-                guard let self, self.runnerID == id else { return }
-                self.handleError(error)
-            },
-            { [weak self] state in
-                guard let self, self.runnerID == id else { return }
-                self.handleState(state)
-            }
-        )
+        startRunner(with: config)
     }
 
     func stop() {
@@ -186,9 +150,42 @@ final class IperfTestRunner {
             scheduleServerRestart()
             return
         }
-        errorMessage = String(describing: error)
+        errorMessage = friendlyMessage(for: error)
         isRunning = false
         stateDescription = "Error"
+    }
+
+    private func friendlyMessage(for error: IperfError) -> String {
+        switch error {
+        case .IECONNECT, .IESTREAMCONNECT:
+            return "Couldn't reach the server. Check the address, port, and that iperf3 is running there."
+        case .IEACCESSDENIED:
+            return "The server is busy running another test. Try again in a moment."
+        case .IESERVERTERM:
+            return "The server stopped unexpectedly."
+        case .IECLIENTTERM:
+            return "The client stopped unexpectedly."
+        case .IECTRLCLOSE, .IESTREAMCLOSE, .IECTRLREAD, .IECTRLWRITE:
+            return "The connection to the server was lost."
+        case .IELISTEN, .IEREUSEADDR:
+            return "Couldn't bind to that port — it may already be in use."
+        case .IEBADPORT:
+            return "Invalid port number."
+        case .IETOTALRATE:
+            return "Requested bandwidth exceeds the server's allowed rate."
+        case .IEDURATION:
+            return "Test duration is too long."
+        case .IENUMSTREAMS:
+            return "Too many parallel streams requested."
+        case .IENEWTEST, .IEINITTEST, .INIT_ERROR, .INIT_ERROR_DEFAULTS:
+            return "Couldn't start the test. Try again."
+        case .IEAUTHTEST:
+            return "Authentication with the server failed."
+        case .UNKNOWN:
+            return "An unknown error occurred."
+        default:
+            return error.debugDescription
+        }
     }
 
     private func handleState(_ state: IperfRunnerState) {
@@ -240,25 +237,35 @@ final class IperfTestRunner {
             config.port = self.serverPort
             config.role = .server
 
-            let newRunner = IperfRunner(with: config)
-            self.runner = newRunner
-            let id = self.runnerID
-            self.startTime = Date()
+            self.startRunner(with: config)
+        }
+    }
 
-            newRunner.start(
-                { [weak self] result in
+    private func startRunner(with config: IperfConfiguration) {
+        let newRunner = IperfRunner(with: config)
+        self.runner = newRunner
+        let id = runnerID
+        startTime = Date()
+
+        newRunner.start(
+            { [weak self] result in
+                DispatchQueue.main.async {
                     guard let self, self.runnerID == id else { return }
                     self.handleResult(result)
-                },
-                { [weak self] error in
+                }
+            },
+            { [weak self] error in
+                DispatchQueue.main.async {
                     guard let self, self.runnerID == id else { return }
                     self.handleError(error)
-                },
-                { [weak self] state in
+                }
+            },
+            { [weak self] state in
+                DispatchQueue.main.async {
                     guard let self, self.runnerID == id else { return }
                     self.handleState(state)
                 }
-            )
-        }
+            }
+        )
     }
 }
