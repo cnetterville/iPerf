@@ -18,7 +18,11 @@ let package = Package(
         .target(
             name: "IperfCLib",
             dependencies: [],
-            path: "Sources/IperfCLib"
+            path: "Sources/IperfCLib",
+            cSettings: [
+                // Upstream iperf3 mixes 64-bit and int types throughout; not worth patching vendored code.
+                .unsafeFlags(["-Wno-shorten-64-to-32"])
+            ]
         ),
         .target(
             name: "IperfSwift",

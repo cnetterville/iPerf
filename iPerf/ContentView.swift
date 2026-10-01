@@ -13,7 +13,7 @@ struct ContentView: View {
     var serverRunner: IperfTestRunner
     @State private var selectedItem: SidebarItem? = .speedTest
     @State private var showingExporter = false
-    @State private var exportFormat: ExportFormat = .csv
+    @State private var exportDocument: TestExportDocument?
     @State private var showingClearConfirmation = false
     @State private var searchText = ""
     @Query(sort: \TestResult.date, order: .reverse) private var testResults: [TestResult]
@@ -115,12 +115,10 @@ struct ContentView: View {
                 if !testResults.isEmpty {
                     Menu {
                         Button("Export All as CSV...") {
-                            exportFormat = .csv
-                            showingExporter = true
+                            exportAll(as: .csv)
                         }
                         Button("Export All as JSON...") {
-                            exportFormat = .json
-                            showingExporter = true
+                            exportAll(as: .json)
                         }
                         Divider()
                         Button("Clear All History...", role: .destructive) {
@@ -134,11 +132,8 @@ struct ContentView: View {
         }
         .fileExporter(
             isPresented: $showingExporter,
-            document: TestExportDocument(
-                content: exportAllResults(),
-                format: exportFormat
-            ),
-            contentType: exportFormat == .csv ? .commaSeparatedText : .json,
+            document: exportDocument,
+            contentType: exportDocument?.format == .json ? .json : .commaSeparatedText,
             defaultFilename: "iperf-results-\(Date().formatted(.iso8601.year().month().day()))"
         ) { _ in }
         .confirmationDialog("Clear all test history?", isPresented: $showingClearConfirmation) {
@@ -172,7 +167,7 @@ struct ContentView: View {
     private func historyRow(_ result: TestResult) -> some View {
         HStack {
             Image(systemName: result.directionSymbol)
-                .foregroundStyle(result.direction == "Download" ? .blue : .green)
+                .foregroundStyle(result.directionKind.color)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -198,13 +193,16 @@ struct ContentView: View {
         }
     }
 
-    private func exportAllResults() -> String {
-        if exportFormat == .csv {
-            return TestResult.csvHeader + "\n" + testResults.map { $0.toCSVRow() }.joined(separator: "\n")
-        } else {
-            let jsonArray = "[" + testResults.map { $0.toJSON() }.joined(separator: ",\n") + "]"
-            return jsonArray
+    private func exportAll(as format: ExportFormat) {
+        let content: String
+        switch format {
+        case .csv:
+            content = TestResult.csvHeader + "\n" + testResults.map { $0.toCSVRow() }.joined(separator: "\n")
+        case .json:
+            content = "[" + testResults.map { $0.toJSON() }.joined(separator: ",\n") + "]"
         }
+        exportDocument = TestExportDocument(content: content, format: format)
+        showingExporter = true
     }
 }
 

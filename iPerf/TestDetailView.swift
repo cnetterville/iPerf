@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 struct TestDetailView: View {
     let result: TestResult
     @State private var showingExporter = false
-    @State private var exportFormat: ExportFormat = .csv
+    @State private var exportDocument: TestExportDocument?
     @State private var copied = false
 
     var body: some View {
@@ -12,10 +12,11 @@ struct TestDetailView: View {
             VStack(spacing: 24) {
                 summaryCard
 
-                if !result.dataPoints.isEmpty {
+                let dataPoints = result.dataPoints
+                if !dataPoints.isEmpty {
                     ThroughputChartView(
-                        dataPoints: result.dataPoints,
-                        lineColor: result.direction == "Download" ? .blue : .green
+                        dataPoints: dataPoints,
+                        lineColor: result.directionKind.color
                     )
                     .padding()
                     .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
@@ -40,11 +41,14 @@ struct TestDetailView: View {
 
                     Menu {
                         Button("Export CSV...") {
-                            exportFormat = .csv
+                            exportDocument = TestExportDocument(
+                                content: TestResult.csvHeader + "\n" + result.toCSVRow(),
+                                format: .csv
+                            )
                             showingExporter = true
                         }
                         Button("Export JSON...") {
-                            exportFormat = .json
+                            exportDocument = TestExportDocument(content: result.toJSON(), format: .json)
                             showingExporter = true
                         }
                     } label: {
@@ -55,13 +59,8 @@ struct TestDetailView: View {
         }
         .fileExporter(
             isPresented: $showingExporter,
-            document: TestExportDocument(
-                content: exportFormat == .csv
-                    ? TestResult.csvHeader + "\n" + result.toCSVRow()
-                    : result.toJSON(),
-                format: exportFormat
-            ),
-            contentType: exportFormat == .csv ? .commaSeparatedText : .json,
+            document: exportDocument,
+            contentType: exportDocument?.format == .json ? .json : .commaSeparatedText,
             defaultFilename: "iperf-result-\(result.date.formatted(.iso8601.year().month().day()))"
         ) { _ in }
     }
@@ -70,7 +69,7 @@ struct TestDetailView: View {
         VStack(spacing: 12) {
             Image(systemName: result.directionSymbol)
                 .font(.system(size: 28))
-                .foregroundStyle(result.direction == "Download" ? .blue : .green)
+                .foregroundStyle(result.directionKind.color)
 
             Text(result.formattedThroughput)
                 .font(.system(size: 48, weight: .bold, design: .rounded))
@@ -106,7 +105,7 @@ struct TestDetailView: View {
                 statLabel("Transferred")
                 statValue(ByteCountFormatter.string(fromByteCount: Int64(result.totalBytes), countStyle: .binary))
             }
-            if result.protocolName == "UDP" {
+            if result.transport == .udp {
                 GridRow {
                     statLabel("Jitter")
                     statValue(String(format: "%.2f ms", result.jitter))

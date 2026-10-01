@@ -5,18 +5,6 @@ struct ThroughputChartView: View {
     let dataPoints: [DataPoint]
     var lineColor: Color = .blue
 
-    private var maxThroughput: Double {
-        dataPoints.map(\.throughputMbps).max() ?? 0
-    }
-
-    private var useGbps: Bool {
-        maxThroughput >= 1000
-    }
-
-    private func scaledValue(_ mbps: Double) -> Double {
-        useGbps ? mbps / 1000 : mbps
-    }
-
     private var chartPoints: [DataPoint] {
         guard let first = dataPoints.first else { return dataPoints }
         if first.timestamp > 0.5 {
@@ -32,10 +20,13 @@ struct ThroughputChartView: View {
     }
 
     var body: some View {
+        let useGbps = (dataPoints.map(\.throughputMbps).max() ?? 0) >= 1000
+        let divisor = useGbps ? 1000.0 : 1.0
+
         Chart(chartPoints) { point in
             AreaMark(
                 x: .value("Time", point.timestamp),
-                y: .value("Throughput", scaledValue(point.throughputMbps))
+                y: .value("Throughput", point.throughputMbps / divisor)
             )
             .foregroundStyle(
                 .linearGradient(
@@ -48,7 +39,7 @@ struct ThroughputChartView: View {
 
             LineMark(
                 x: .value("Time", point.timestamp),
-                y: .value("Throughput", scaledValue(point.throughputMbps))
+                y: .value("Throughput", point.throughputMbps / divisor)
             )
             .foregroundStyle(lineColor)
             .lineStyle(StrokeStyle(lineWidth: 2))

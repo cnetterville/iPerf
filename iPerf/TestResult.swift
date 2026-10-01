@@ -1,5 +1,27 @@
-import Foundation
+import SwiftUI
 import SwiftData
+
+enum TransportProtocol: String, CaseIterable, Identifiable {
+    case tcp = "TCP"
+    case udp = "UDP"
+
+    var id: String { rawValue }
+}
+
+enum TestDirection: String, CaseIterable, Identifiable {
+    case download = "Download"
+    case upload = "Upload"
+
+    var id: String { rawValue }
+
+    var symbol: String {
+        self == .download ? "arrow.down.circle.fill" : "arrow.up.circle.fill"
+    }
+
+    var color: Color {
+        self == .download ? .blue : .green
+    }
+}
 
 struct DataPoint: Codable, Identifiable, Sendable {
     var id = UUID()
@@ -37,19 +59,27 @@ final class TestResult {
         }
     }
 
+    var transport: TransportProtocol {
+        TransportProtocol(rawValue: protocolName) ?? .tcp
+    }
+
+    var directionKind: TestDirection {
+        TestDirection(rawValue: direction) ?? .download
+    }
+
     init(
         serverAddress: String,
         port: Int,
-        protocolName: String,
-        direction: String,
+        transport: TransportProtocol,
+        direction: TestDirection,
         streamCount: Int,
         testDuration: Double,
         isServerMode: Bool = false
     ) {
         self.serverAddress = serverAddress
         self.port = port
-        self.protocolName = protocolName
-        self.direction = direction
+        self.protocolName = transport.rawValue
+        self.direction = direction.rawValue
         self.streamCount = streamCount
         self.testDuration = testDuration
         self.isServerMode = isServerMode
@@ -67,7 +97,7 @@ final class TestResult {
     }
 
     var directionSymbol: String {
-        direction == "Download" ? "arrow.down.circle.fill" : "arrow.up.circle.fill"
+        directionKind.symbol
     }
 
     var summaryText: String {
@@ -83,7 +113,7 @@ final class TestResult {
             "Max: \(formatSpeed(maxThroughputMbps))",
             "Transferred: \(ByteCountFormatter.string(fromByteCount: Int64(totalBytes), countStyle: .binary))"
         ]
-        if protocolName == "UDP" {
+        if transport == .udp {
             lines.append("Jitter: \(String(format: "%.2f ms", jitter))")
             lines.append("Packet Loss: \(String(format: "%.1f%%", packetLossPercent))")
         } else {

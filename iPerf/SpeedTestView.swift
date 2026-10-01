@@ -7,8 +7,8 @@ struct SpeedTestView: View {
 
     @AppStorage("client.serverAddress") private var serverAddress = "192.168.1.1"
     @AppStorage("client.port") private var port = 5201
-    @AppStorage("client.protocol") private var selectedProtocol = "TCP"
-    @AppStorage("client.direction") private var selectedDirection = "Download"
+    @AppStorage("client.protocol") private var selectedProtocol = TransportProtocol.tcp
+    @AppStorage("client.direction") private var selectedDirection = TestDirection.download
     @AppStorage("client.streamCount") private var streamCount = 3
     @AppStorage("client.duration") private var duration: Double = 10
     @AppStorage("client.bandwidthLimit") private var bandwidthLimit: Double = 1
@@ -43,7 +43,7 @@ struct SpeedTestView: View {
         }
         .navigationTitle("Speed Test")
         .onChange(of: runner.isRunning) { wasRunning, isNowRunning in
-            if wasRunning && !isNowRunning && runner.stateDescription == "Completed" && !runner.isServerMode {
+            if wasRunning && !isNowRunning && runner.state == .completed && !runner.isServerMode {
                 saveResult()
             }
         }
@@ -104,8 +104,9 @@ struct SpeedTestView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Picker("Protocol", selection: $selectedProtocol) {
-                        Text("TCP").tag("TCP")
-                        Text("UDP").tag("UDP")
+                        ForEach(TransportProtocol.allCases) { option in
+                            Text(option.rawValue).tag(option)
+                        }
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 160)
@@ -116,8 +117,8 @@ struct SpeedTestView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Picker("Direction", selection: $selectedDirection) {
-                        Label("Download", systemImage: "arrow.down").tag("Download")
-                        Label("Upload", systemImage: "arrow.up").tag("Upload")
+                        Label("Download", systemImage: "arrow.down").tag(TestDirection.download)
+                        Label("Upload", systemImage: "arrow.up").tag(TestDirection.upload)
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 220)
@@ -142,7 +143,7 @@ struct SpeedTestView: View {
                 }
             }
 
-            if selectedProtocol == "UDP" {
+            if selectedProtocol == .udp {
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Bandwidth Limit")
@@ -188,6 +189,7 @@ struct SpeedTestView: View {
         .controlSize(.large)
         .buttonStyle(.borderedProminent)
         .tint(runner.isRunning ? .red : .accentColor)
+        .disabled(!runner.isRunning && !isInputValid)
     }
 
     // MARK: - Results
@@ -198,7 +200,7 @@ struct SpeedTestView: View {
 
             ThroughputChartView(
                 dataPoints: runner.dataPoints,
-                lineColor: selectedDirection == "Download" ? .blue : .green
+                lineColor: selectedDirection.color
             )
             .padding()
             .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
@@ -209,9 +211,9 @@ struct SpeedTestView: View {
 
     private var speedDisplay: some View {
         VStack(spacing: 8) {
-            Image(systemName: selectedDirection == "Download" ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
+            Image(systemName: selectedDirection.symbol)
                 .font(.system(size: 28))
-                .foregroundStyle(selectedDirection == "Download" ? .blue : .green)
+                .foregroundStyle(selectedDirection.color)
 
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text(runner.formattedCurrentSpeed)
@@ -230,7 +232,7 @@ struct SpeedTestView: View {
                     .foregroundStyle(runner.isRunning ? .primary : .secondary)
                 Text("·")
                     .foregroundStyle(.secondary)
-                Text("\(selectedProtocol) · \(streamCount) stream\(streamCount == 1 ? "" : "s")")
+                Text("\(selectedProtocol.rawValue) · \(streamCount) stream\(streamCount == 1 ? "" : "s")")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -245,7 +247,7 @@ struct SpeedTestView: View {
             statItem(title: "Duration", value: String(format: "%.1fs", runner.elapsedTime), icon: "clock")
             Divider().frame(height: 44)
             statItem(title: "Transferred", value: runner.formattedBytes, icon: "arrow.left.arrow.right")
-            if selectedProtocol == "UDP" {
+            if selectedProtocol == .udp {
                 Divider().frame(height: 44)
                 statItem(title: "Jitter", value: String(format: "%.2f ms", runner.lastJitter), icon: "waveform.path")
                 Divider().frame(height: 44)
@@ -277,28 +279,36 @@ struct SpeedTestView: View {
 
     // MARK: - Actions
 
+    private var isInputValid: Bool {
+        !serverAddress.trimmingCharacters(in: .whitespaces).isEmpty
+            && (1...65535).contains(port)
+            && (selectedProtocol == .tcp || (bandwidthLimit.isFinite && bandwidthLimit > 0))
+    }
+
     private var bandwidthBitsPerSecond: UInt64 {
         let mbps = bandwidthUnit == "Gbps" ? bandwidthLimit * 1000 : bandwidthLimit
-        return UInt64(mbps * 1_000_000)
+        let bps = mbps * 1_000_000
+        guard bps.isFinite, bps > 0 else { return 0 }
+        return UInt64(min(bps, Double(UInt64.max / 2)))
     }
 
     private func startTest() {
         runner.startClient(
-            address: serverAddress,
+            address: serverAddress.trimmingCharacters(in: .whitespaces),
             port: port,
             protocolType: selectedProtocol,
             direction: selectedDirection,
             streams: streamCount,
             duration: duration,
-            rate: selectedProtocol == "UDP" ? bandwidthBitsPerSecond : nil
+            rate: selectedProtocol == .udp ? bandwidthBitsPerSecond : nil
         )
     }
 
     private func saveResult() {
         let result = TestResult(
-            serverAddress: serverAddress,
+            serverAddress: serverAddress.trimmingCharacters(in: .whitespaces),
             port: port,
-            protocolName: selectedProtocol,
+            transport: selectedProtocol,
             direction: selectedDirection,
             streamCount: streamCount,
             testDuration: duration

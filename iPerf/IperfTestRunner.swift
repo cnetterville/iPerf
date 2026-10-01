@@ -2,13 +2,17 @@ import Foundation
 import Observation
 import IperfSwift
 
+enum TestState: Equatable {
+    case idle, connecting, initializing, listening, running, stopping, completed, failed
+}
+
 @Observable
 final class IperfTestRunner {
     var isRunning = false
     var dataPoints: [DataPoint] = []
     var currentThroughputMbps: Double = 0
     var totalBytesTransferred: Int = 0
-    var stateDescription: String = "Ready"
+    var state: TestState = .idle
     var errorMessage: String?
     var elapsedTime: TimeInterval = 0
     var lastJitter: Double = 0
@@ -23,6 +27,19 @@ final class IperfTestRunner {
     private var startTime: Date?
     private var stoppedByUser = false
     private var pendingRestart = false
+
+    var stateDescription: String {
+        switch state {
+        case .idle: "Ready"
+        case .connecting: "Connecting..."
+        case .initializing: "Initializing..."
+        case .listening: "Listening on port \(serverPort)..."
+        case .running: "Running"
+        case .stopping: "Stopping..."
+        case .completed: "Completed"
+        case .failed: "Error"
+        }
+    }
 
     var averageThroughputMbps: Double {
         guard !dataPoints.isEmpty else { return 0 }
@@ -56,8 +73,8 @@ final class IperfTestRunner {
     func startClient(
         address: String,
         port: Int,
-        protocolType: String,
-        direction: String,
+        protocolType: TransportProtocol,
+        direction: TestDirection,
         streams: Int,
         duration: TimeInterval,
         rate: UInt64? = nil
@@ -65,14 +82,14 @@ final class IperfTestRunner {
         reset()
         isRunning = true
         isServerMode = false
-        stateDescription = "Connecting..."
+        state = .connecting
 
         var config = IperfConfiguration()
         config.address = address
         config.port = port
         config.role = .client
-        config.prot = protocolType == "UDP" ? .udp : .tcp
-        config.reverse = direction == "Download" ? .download : .upload
+        config.prot = protocolType == .udp ? .udp : .tcp
+        config.reverse = direction == .download ? .download : .upload
         config.numStreams = streams
         config.duration = duration
         config.reporterInterval = 0.5
@@ -87,7 +104,7 @@ final class IperfTestRunner {
         isRunning = true
         isServerMode = true
         serverPort = port
-        stateDescription = "Listening on port \(port)..."
+        state = .listening
 
         var config = IperfConfiguration()
         config.address = nil
@@ -103,7 +120,7 @@ final class IperfTestRunner {
         runner?.stop()
         runner = nil
         isRunning = false
-        stateDescription = "Ready"
+        state = .idle
     }
 
     private func reset() {
@@ -152,7 +169,7 @@ final class IperfTestRunner {
         }
         errorMessage = friendlyMessage(for: error)
         isRunning = false
-        stateDescription = "Error"
+        state = .failed
     }
 
     private func friendlyMessage(for error: IperfError) -> String {
@@ -188,29 +205,29 @@ final class IperfTestRunner {
         }
     }
 
-    private func handleState(_ state: IperfRunnerState) {
+    private func handleState(_ runnerState: IperfRunnerState) {
         guard !stoppedByUser else { return }
-        switch state {
+        switch runnerState {
         case .running:
-            stateDescription = "Running"
+            state = .running
         case .finished:
             if isServerMode {
                 scheduleServerRestart()
             } else {
                 isRunning = false
-                stateDescription = "Completed"
+                state = .completed
             }
         case .initialising:
-            stateDescription = "Initializing..."
+            state = .initializing
         case .error:
             if isServerMode {
                 scheduleServerRestart()
             } else {
                 isRunning = false
-                stateDescription = "Error"
+                state = .failed
             }
         case .stopping:
-            stateDescription = "Stopping..."
+            state = .stopping
         default:
             break
         }
@@ -222,7 +239,7 @@ final class IperfTestRunner {
         runner?.stop()
         runner = nil
         runnerID = UUID()
-        stateDescription = "Listening on port \(serverPort)..."
+        state = .listening
         dataPoints = []
         currentThroughputMbps = 0
         totalBytesTransferred = 0
