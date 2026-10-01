@@ -14,29 +14,30 @@ public struct IperfStreamIntervalResult {
 //    struct tcp_info tcpInfo; /* getsockopt(TCP_INFO) for Linux, {Free,Net}BSD */
 //    TAILQ_ENTRY(iperf_interval_results) irlistentries;
 //    void     *custom_data;
-    var bytesTransferred: UInt64 = 0
-    var intervalDuration: Double = 0
-    var intervalPacketCount: Int32 = 0
-    var intervalOutoforderPackets: Int32 = 0
-    var intervalCntError: Int32 = 0
+    public var bytesTransferred: UInt64 = 0
+    public var intervalDuration: Double = 0
+    public var intervalPacketCount: Int32 = 0
+    public var intervalOutoforderPackets: Int32 = 0
+    public var intervalCntError: Int32 = 0
     
-    var packetCount: Int32 = 0
-    var jitter: Double = 0
-    var outoforderPackets: Int32 = 0
-    var cnt_error: Int32 = 0
-    var omitted: Int32 = 0
+    public var packetCount: Int32 = 0
+    public var jitter: Double = 0
+    public var outoforderPackets: Int32 = 0
+    public var cnt_error: Int32 = 0
+    public var omitted: Int32 = 0
     
-    var intervalRetrans: Int32 = 0
-    var intervalSacks: Int32 = 0
-    var sndCwnd: Int32 = 0
-    var rtt: Int32 = 0
-    var rttvar: Int32 = 0
-    var pmtu: Int32 = 0
+    public var intervalRetrans: Int32 = 0
+    public var intervalSacks: Int32 = 0
+    public var sndCwnd: Int32 = 0
+    /// Smoothed round-trip time in microseconds (TCP only; 0 when unavailable).
+    public var rtt: Int32 = 0
+    public var rttvar: Int32 = 0
+    public var pmtu: Int32 = 0
     
-    var startTime: Double = 0
-    var endTime: Double = 0
+    public var startTime: Double = 0
+    public var endTime: Double = 0
     
-    var intervalTimeDiff = TimeInterval(0.0)
+    public var intervalTimeDiff = TimeInterval(0.0)
     
     init(_ results: iperf_interval_results) {
         var diff = iperf_time()

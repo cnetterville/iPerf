@@ -21,10 +21,15 @@ final class IperfTestRunner {
     var lastRtt: Double = 0
     var isServerMode: Bool = false
     var serverPort: Int = 5201
+    var activeProfile: TestProfile?
+    var testDuration: TimeInterval = 0
+    var connectedClient: String?
 
     private var runner: IperfRunner?
     private var runnerID = UUID()
-    private var startTime: Date?
+    private var testStart: Date?
+    private var rttTotal: Double = 0
+    private var rttSamples = 0
     private var stoppedByUser = false
     private var pendingRestart = false
 
@@ -41,6 +46,16 @@ final class IperfTestRunner {
         }
     }
 
+    /// 0...1 progress of a client test, or nil while no data has arrived yet.
+    var progress: Double? {
+        guard !isServerMode, testDuration > 0, !dataPoints.isEmpty else { return nil }
+        return min(elapsedTime / testDuration, 1)
+    }
+
+    var remainingTime: TimeInterval {
+        max(testDuration - elapsedTime, 0)
+    }
+
     var averageThroughputMbps: Double {
         guard !dataPoints.isEmpty else { return 0 }
         return dataPoints.map(\.throughputMbps).reduce(0, +) / Double(dataPoints.count)
@@ -48,6 +63,10 @@ final class IperfTestRunner {
 
     var maxThroughputMbps: Double {
         dataPoints.map(\.throughputMbps).max() ?? 0
+    }
+
+    var averageRttMs: Double {
+        rttSamples > 0 ? rttTotal / Double(rttSamples) : 0
     }
 
     var packetLossPercent: Double {
@@ -70,31 +89,25 @@ final class IperfTestRunner {
         ByteCountFormatter.string(fromByteCount: Int64(totalBytesTransferred), countStyle: .binary)
     }
 
-    func startClient(
-        address: String,
-        port: Int,
-        protocolType: TransportProtocol,
-        direction: TestDirection,
-        streams: Int,
-        duration: TimeInterval,
-        rate: UInt64? = nil
-    ) {
+    func start(profile: TestProfile) {
         reset()
+        activeProfile = profile
+        testDuration = profile.duration
         isRunning = true
         isServerMode = false
         state = .connecting
 
         var config = IperfConfiguration()
-        config.address = address
-        config.port = port
+        config.address = profile.trimmedAddress
+        config.port = profile.port
         config.role = .client
-        config.prot = protocolType == .udp ? .udp : .tcp
-        config.reverse = direction == .download ? .download : .upload
-        config.numStreams = streams
-        config.duration = duration
+        config.prot = profile.transport == .udp ? .udp : .tcp
+        config.reverse = profile.direction == .download ? .download : .upload
+        config.numStreams = profile.streams
+        config.duration = profile.duration
         config.reporterInterval = 0.5
         config.timeout = 10
-        if let rate { config.rate = rate }
+        if profile.transport == .udp { config.rate = profile.rateBitsPerSecond }
 
         startRunner(with: config)
     }
@@ -120,7 +133,30 @@ final class IperfTestRunner {
         runner?.stop()
         runner = nil
         isRunning = false
+        connectedClient = nil
         state = .idle
+    }
+
+    /// Builds a persistable result from the finished client test, or nil if there is nothing to save.
+    func makeResult() -> TestResult? {
+        guard let profile = activeProfile, !isServerMode, !dataPoints.isEmpty else { return nil }
+        let result = TestResult(
+            serverAddress: profile.trimmedAddress,
+            port: profile.port,
+            transport: profile.transport,
+            direction: profile.direction,
+            streamCount: profile.streams,
+            testDuration: profile.duration
+        )
+        result.averageThroughputMbps = averageThroughputMbps
+        result.maxThroughputMbps = maxThroughputMbps
+        result.totalBytes = totalBytesTransferred
+        result.jitter = lastJitter
+        result.packetLossPercent = packetLossPercent
+        result.rttMs = averageRttMs
+        result.dataPoints = dataPoints
+        result.status = "completed"
+        return result
     }
 
     private func reset() {
@@ -129,15 +165,25 @@ final class IperfTestRunner {
         runnerID = UUID()
         stoppedByUser = false
         pendingRestart = false
+        activeProfile = nil
+        testDuration = 0
+        errorMessage = nil
+        connectedClient = nil
+        resetMetrics()
+    }
+
+    private func resetMetrics() {
         dataPoints = []
         currentThroughputMbps = 0
         totalBytesTransferred = 0
-        errorMessage = nil
         elapsedTime = 0
         lastJitter = 0
         totalLostPackets = 0
         totalPacketsSent = 0
         lastRtt = 0
+        rttTotal = 0
+        rttSamples = 0
+        testStart = nil
     }
 
     private func handleResult(_ result: IperfIntervalResult) {
@@ -145,12 +191,23 @@ final class IperfTestRunner {
         currentThroughputMbps = mbps
         totalBytesTransferred += Int(result.totalBytes)
 
-        if let start = startTime {
-            elapsedTime = Date().timeIntervalSince(start)
+        let now = Date()
+        if testStart == nil {
+            let interval = result.streams.first?.intervalDuration ?? 0
+            testStart = now.addingTimeInterval(-interval)
+        }
+        if let testStart {
+            elapsedTime = now.timeIntervalSince(testStart)
         }
 
-        let point = DataPoint(timestamp: elapsedTime, throughputMbps: mbps)
-        dataPoints.append(point)
+        var streamRates: [Double]?
+        if result.streams.count > 1 {
+            streamRates = result.streams.map { stream in
+                guard stream.intervalDuration > 0 else { return 0 }
+                return Double(stream.bytesTransferred) * 8 / stream.intervalDuration / 1_000_000
+            }
+        }
+        dataPoints.append(DataPoint(timestamp: elapsedTime, throughputMbps: mbps, streamMbps: streamRates))
 
         if result.prot == .udp {
             lastJitter = result.averageJitter
@@ -159,6 +216,14 @@ final class IperfTestRunner {
         }
 
         lastRtt = result.averageRtt
+        if result.averageRtt > 0 {
+            rttTotal += result.averageRtt
+            rttSamples += 1
+        }
+
+        if isServerMode, let peer = result.peerAddress {
+            connectedClient = peer
+        }
     }
 
     private func handleError(_ error: IperfError) {
@@ -240,10 +305,8 @@ final class IperfTestRunner {
         runner = nil
         runnerID = UUID()
         state = .listening
-        dataPoints = []
-        currentThroughputMbps = 0
-        totalBytesTransferred = 0
-        elapsedTime = 0
+        connectedClient = nil
+        resetMetrics()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self, self.isServerMode, !self.stoppedByUser else { return }
@@ -262,7 +325,6 @@ final class IperfTestRunner {
         let newRunner = IperfRunner(with: config)
         self.runner = newRunner
         let id = runnerID
-        startTime = Date()
 
         newRunner.start(
             { [weak self] result in

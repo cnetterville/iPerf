@@ -18,7 +18,10 @@ public struct IperfIntervalResult: Identifiable {
     public var totalLostPackets: Int32 = 0
     public var totalOutoforderPackets: Int32 = 0
     public var averageJitter: Double = 0.0
+    /// Mean smoothed RTT across streams, in milliseconds (0 when unavailable).
     public var averageRtt: Double = 0.0
+    /// Address of the connected client (server role only).
+    public var peerAddress: String?
     public var duration: TimeInterval = 0.0
     public var state: IperfState = .UNKNOWN
     public var debugDescription: String = ""
@@ -67,6 +70,11 @@ public struct IperfIntervalResult: Identifiable {
                 averageJitter = sumJitter / Double(streams.count)
             }
             throughput = IperfThroughput(bytes: totalBytes, seconds: first.intervalDuration)
+        }
+        
+        let rtts = streams.map(\.rtt).filter { $0 > 0 }
+        if !rtts.isEmpty {
+            averageRtt = Double(rtts.reduce(0, +)) / Double(rtts.count) / 1000.0
         }
     }
 }

@@ -1,8 +1,13 @@
 import SwiftUI
+import SwiftData
+import Charts
 import UniformTypeIdentifiers
 
 struct TestDetailView: View {
-    let result: TestResult
+    @Bindable var result: TestResult
+    var canRunAgain = true
+    var onRunAgain: (TestResult) -> Void = { _ in }
+
     @State private var showingExporter = false
     @State private var exportDocument: TestExportDocument?
     @State private var copied = false
@@ -18,42 +23,58 @@ struct TestDetailView: View {
                         dataPoints: dataPoints,
                         lineColor: result.directionKind.color
                     )
-                    .padding()
-                    .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
+                    .cardStyle()
                 }
 
                 detailStats
+
+                notesCard
+
+                TrendChartView(current: result)
             }
             .padding(24)
         }
         .navigationTitle("Test Result")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 8) {
-                    Button {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(result.summaryText, forType: .string)
-                        copied = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
-                    } label: {
-                        Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
-                    }
+                Button {
+                    onRunAgain(result)
+                } label: {
+                    Label("Run Again", systemImage: "arrow.clockwise")
+                }
+                .disabled(!canRunAgain)
+                .help("Run this test again with the same settings")
+            }
 
-                    Menu {
-                        Button("Export CSV...") {
-                            exportDocument = TestExportDocument(
-                                content: TestResult.csvHeader + "\n" + result.toCSVRow(),
-                                format: .csv
-                            )
-                            showingExporter = true
-                        }
-                        Button("Export JSON...") {
-                            exportDocument = TestExportDocument(content: result.toJSON(), format: .json)
-                            showingExporter = true
-                        }
-                    } label: {
-                        Label("Export", systemImage: "square.and.arrow.up")
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(result.summaryText, forType: .string)
+                    copied = true
+                    Task {
+                        try? await Task.sleep(for: .seconds(1.5))
+                        copied = false
                     }
+                } label: {
+                    Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                }
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Export CSV...") {
+                        exportDocument = TestExportDocument(
+                            content: TestResult.csvHeader + "\n" + result.toCSVRow(),
+                            format: .csv
+                        )
+                        showingExporter = true
+                    }
+                    Button("Export JSON...") {
+                        exportDocument = TestExportDocument(content: result.toJSON(), format: .json)
+                        showingExporter = true
+                    }
+                } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
                 }
             }
         }
@@ -83,8 +104,7 @@ struct TestDetailView: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(24)
-        .frame(maxWidth: .infinity)
-        .glassEffect(in: .rect(cornerRadius: 20))
+        .heroStyle()
     }
 
     private var detailStats: some View {
@@ -121,8 +141,36 @@ struct TestDetailView: View {
                 }
             }
         }
-        .padding()
-        .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    private var notesCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Notes")
+                .font(.headline)
+
+            TextField("Add a note (location, cable, Wi-Fi band…)", text: $result.notes, axis: .vertical)
+                .lineLimit(1...5)
+                .textFieldStyle(.roundedBorder)
+
+            TextField("Tags, comma separated", text: $result.tags)
+                .textFieldStyle(.roundedBorder)
+
+            if !result.tagList.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(result.tagList, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(.tint.opacity(0.15), in: .capsule)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
     }
 
     private func statLabel(_ text: String) -> some View {
@@ -134,7 +182,69 @@ struct TestDetailView: View {
         Text(text)
             .fontWeight(.medium)
     }
+}
 
+/// Average throughput over time for results sharing the same server, protocol and direction.
+struct TrendChartView: View {
+    let current: TestResult
+    @Query private var history: [TestResult]
+
+    init(current: TestResult) {
+        self.current = current
+        let address = current.serverAddress
+        var descriptor = FetchDescriptor<TestResult>(
+            predicate: #Predicate { $0.serverAddress == address && !$0.isServerMode },
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        descriptor.fetchLimit = 50
+        _history = Query(descriptor)
+    }
+
+    private var matching: [TestResult] {
+        history
+            .filter { $0.protocolName == current.protocolName && $0.direction == current.direction }
+            .sorted { $0.date < $1.date }
+    }
+
+    var body: some View {
+        let results = matching
+        if results.count >= 2 {
+            let useGbps = (results.map(\.averageThroughputMbps).max() ?? 0) >= 1000
+            let divisor = useGbps ? 1000.0 : 1.0
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Trend — \(current.serverAddress) · \(current.protocolName) \(current.direction)")
+                    .font(.headline)
+
+                Chart {
+                    ForEach(results) { item in
+                        LineMark(
+                            x: .value("Date", item.date),
+                            y: .value("Average", item.averageThroughputMbps / divisor)
+                        )
+                        .foregroundStyle(current.directionKind.color.opacity(0.6))
+                        .interpolationMethod(.monotone)
+
+                        PointMark(
+                            x: .value("Date", item.date),
+                            y: .value("Average", item.averageThroughputMbps / divisor)
+                        )
+                        .foregroundStyle(item.id == current.id ? Color.orange : current.directionKind.color)
+                        .symbolSize(item.id == current.id ? 90 : 36)
+                    }
+                }
+                .chartYScale(domain: .automatic(includesZero: true))
+                .chartYAxisLabel(useGbps ? "Gbps" : "Mbps")
+                .frame(height: 160)
+
+                Text("\(results.count) tests · highlighted point is this result")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyle()
+        }
+    }
 }
 
 enum ExportFormat {

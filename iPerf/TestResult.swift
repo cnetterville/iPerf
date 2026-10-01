@@ -1,14 +1,14 @@
 import SwiftUI
 import SwiftData
 
-enum TransportProtocol: String, CaseIterable, Identifiable {
+enum TransportProtocol: String, CaseIterable, Identifiable, Codable {
     case tcp = "TCP"
     case udp = "UDP"
 
     var id: String { rawValue }
 }
 
-enum TestDirection: String, CaseIterable, Identifiable {
+enum TestDirection: String, CaseIterable, Identifiable, Codable {
     case download = "Download"
     case upload = "Upload"
 
@@ -27,6 +27,8 @@ struct DataPoint: Codable, Identifiable, Sendable {
     var id = UUID()
     var timestamp: TimeInterval
     var throughputMbps: Double
+    /// Per-stream rates in Mbps; only recorded when the test used more than one stream.
+    var streamMbps: [Double]? = nil
 }
 
 @Model
@@ -49,6 +51,14 @@ final class TestResult {
     var isServerMode: Bool = false
     var status: String = "running"
     var errorMessage: String?
+    var notes: String = ""
+    var tags: String = ""
+
+    var tagList: [String] {
+        tags.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
 
     var dataPoints: [DataPoint] {
         get {
@@ -124,11 +134,21 @@ final class TestResult {
 
     func toCSVRow() -> String {
         let dateStr = ISO8601DateFormatter().string(from: date)
-        return "\(dateStr),\(serverAddress),\(port),\(protocolName),\(direction),\(streamCount),\(testDuration),\(averageThroughputMbps),\(maxThroughputMbps),\(totalBytes),\(jitter),\(packetLossPercent),\(rttMs)"
+        let fields: [String] = [
+            dateStr, serverAddress, "\(port)", protocolName, direction, "\(streamCount)",
+            "\(testDuration)", "\(averageThroughputMbps)", "\(maxThroughputMbps)", "\(totalBytes)",
+            "\(jitter)", "\(packetLossPercent)", "\(rttMs)", notes, tags
+        ]
+        return fields.map(Self.csvEscape).joined(separator: ",")
     }
 
     static var csvHeader: String {
-        "Date,Server,Port,Protocol,Direction,Streams,Duration,AvgMbps,MaxMbps,Bytes,Jitter,PacketLoss%,RTTms"
+        "Date,Server,Port,Protocol,Direction,Streams,Duration,AvgMbps,MaxMbps,Bytes,Jitter,PacketLoss%,RTTms,Notes,Tags"
+    }
+
+    private static func csvEscape(_ field: String) -> String {
+        guard field.contains(where: { $0 == "," || $0 == "\"" || $0 == "\n" || $0 == "\r" }) else { return field }
+        return "\"" + field.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }
 
     func toJSON() -> String {
@@ -146,6 +166,8 @@ final class TestResult {
             "jitter": jitter,
             "packetLossPercent": packetLossPercent,
             "rttMs": rttMs,
+            "notes": notes,
+            "tags": tagList,
             "dataPoints": dataPoints.map { ["time": $0.timestamp, "mbps": $0.throughputMbps] }
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys]) else { return "{}" }

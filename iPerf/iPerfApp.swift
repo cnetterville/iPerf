@@ -5,10 +5,19 @@ import SwiftData
 struct iPerfApp: App {
     @State private var testRunner = IperfTestRunner()
     @State private var serverRunner = IperfTestRunner()
-    @AppStorage("hideDockIcon") private var hideDockIcon = false
+    @AppStorage(ClientPrefs.hideDockIcon) private var hideDockIcon = false
+
+    private var serverActive: Bool {
+        serverRunner.isRunning && serverRunner.isServerMode
+    }
 
     private var menuBarVisible: Bool {
-        hideDockIcon || (serverRunner.isRunning && serverRunner.isServerMode)
+        hideDockIcon || serverActive
+    }
+
+    private var menuBarSpeed: String? {
+        guard serverActive, serverRunner.currentThroughputMbps > 0 else { return nil }
+        return "\(serverRunner.formattedCurrentSpeed) \(serverRunner.speedUnit)"
     }
 
     var body: some Scene {
@@ -22,6 +31,13 @@ struct iPerfApp: App {
         }
         .modelContainer(for: TestResult.self)
         .defaultSize(width: 900, height: 650)
+        .commands {
+            TestCommands(runner: testRunner)
+        }
+
+        Settings {
+            SettingsView()
+        }
 
         MenuBarExtra(isInserted: Binding(
             get: { menuBarVisible },
@@ -29,7 +45,49 @@ struct iPerfApp: App {
         )) {
             ServerMenuContent(runner: serverRunner, hideDockIcon: $hideDockIcon)
         } label: {
-            Image(systemName: "gauge.with.dots.needle.33percent")
+            HStack(spacing: 4) {
+                Image(systemName: "gauge.with.dots.needle.33percent")
+                if let menuBarSpeed {
+                    Text(menuBarSpeed)
+                        .monospacedDigit()
+                }
+            }
+        }
+    }
+}
+
+struct TestCommands: Commands {
+    var runner: IperfTestRunner
+    @FocusedValue(\.deleteResultAction) private var deleteResult
+
+    var body: some Commands {
+        CommandMenu("Test") {
+            Button(runner.isRunning ? "Stop Test" : "Start Test") {
+                if runner.isRunning {
+                    runner.stop()
+                    return
+                }
+                let profile = TestProfile.current
+                if profile.isValid {
+                    runner.start(profile: profile)
+                } else {
+                    NSSound.beep()
+                }
+            }
+            .keyboardShortcut("r")
+
+            Divider()
+
+            Button("Delete Result") {
+                // ⌘⌫ also means "delete to line start" while editing text; keep that behavior.
+                if NSApp.keyWindow?.firstResponder is NSText {
+                    NSApp.sendAction(#selector(NSResponder.deleteToBeginningOfLine(_:)), to: nil, from: nil)
+                } else {
+                    deleteResult?()
+                }
+            }
+            .keyboardShortcut(.delete, modifiers: .command)
+            .disabled(deleteResult == nil)
         }
     }
 }
@@ -42,6 +100,10 @@ struct ServerMenuContent: View {
     var body: some View {
         if runner.isRunning && runner.isServerMode {
             Text("Server Running — Port \(runner.serverPort, format: .number.grouping(.never))")
+            if let client = runner.connectedClient {
+                Text("Client: \(client)")
+                Text("\(runner.formattedCurrentSpeed) \(runner.speedUnit)")
+            }
             Divider()
             Button("Stop Server") {
                 runner.stop()

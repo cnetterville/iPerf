@@ -3,18 +3,45 @@ import SwiftData
 
 struct SpeedTestView: View {
     var runner: IperfTestRunner
-    @Environment(\.modelContext) private var modelContext
 
-    @AppStorage("client.serverAddress") private var serverAddress = "192.168.1.1"
-    @AppStorage("client.port") private var port = 5201
-    @AppStorage("client.protocol") private var selectedProtocol = TransportProtocol.tcp
-    @AppStorage("client.direction") private var selectedDirection = TestDirection.download
-    @AppStorage("client.streamCount") private var streamCount = 3
-    @AppStorage("client.duration") private var duration: Double = 10
-    @AppStorage("client.bandwidthLimit") private var bandwidthLimit: Double = 1
-    @AppStorage("client.bandwidthUnit") private var bandwidthUnit = "Mbps"
+    @AppStorage(ClientPrefs.serverAddress) private var serverAddress = TestProfile.defaults.address
+    @AppStorage(ClientPrefs.port) private var port = TestProfile.defaults.port
+    @AppStorage(ClientPrefs.transport) private var selectedProtocol = TestProfile.defaults.transport
+    @AppStorage(ClientPrefs.direction) private var selectedDirection = TestProfile.defaults.direction
+    @AppStorage(ClientPrefs.streamCount) private var streamCount = TestProfile.defaults.streams
+    @AppStorage(ClientPrefs.duration) private var duration = TestProfile.defaults.duration
+    @AppStorage(ClientPrefs.bandwidthLimit) private var bandwidthLimit = TestProfile.defaults.bandwidthLimit
+    @AppStorage(ClientPrefs.bandwidthUnit) private var bandwidthUnit = TestProfile.defaults.bandwidthUnit
+    @AppStorage(ClientPrefs.presets) private var presetsData = Data()
+
     @State private var showingError = false
+    @State private var showingSavePreset = false
+    @State private var presetName = ""
+    @State private var latencyState = LatencyState.idle
+    @State private var latencyTask: Task<Void, Never>?
     @Query(sort: \TestResult.date, order: .reverse) private var testResults: [TestResult]
+
+    private enum LatencyState: Equatable {
+        case idle, measuring, failed
+        case result(LatencyResult)
+    }
+
+    private var profile: TestProfile {
+        TestProfile(
+            address: serverAddress,
+            port: port,
+            transport: selectedProtocol,
+            direction: selectedDirection,
+            streams: streamCount,
+            duration: duration,
+            bandwidthLimit: bandwidthLimit,
+            bandwidthUnit: bandwidthUnit
+        )
+    }
+
+    private var presets: [TestProfile] {
+        TestProfile.decodeList(presetsData)
+    }
 
     private var previousAddresses: [String] {
         var seen = Set<String>()
@@ -32,7 +59,7 @@ struct SpeedTestView: View {
                 configurationCard
                     .disabled(runner.isRunning)
 
-                actionButton
+                actionButtons
 
                 if runner.isRunning || !runner.dataPoints.isEmpty {
                     Divider()
@@ -42,32 +69,42 @@ struct SpeedTestView: View {
             .padding(24)
         }
         .navigationTitle("Speed Test")
-        .onChange(of: runner.isRunning) { wasRunning, isNowRunning in
-            if wasRunning && !isNowRunning && runner.state == .completed && !runner.isServerMode {
-                saveResult()
-            }
-        }
         .alert("Connection Error", isPresented: $showingError) {
             Button("OK") { }
         } message: {
             Text(runner.errorMessage ?? "An unknown error occurred")
         }
-        .onChange(of: runner.stateDescription) { _, newValue in
-            if newValue == "Error" && runner.errorMessage != nil {
+        .alert("Save Preset", isPresented: $showingSavePreset) {
+            TextField("Name", text: $presetName)
+            Button("Save") { savePreset() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Saves the current server, protocol, direction, streams and duration.")
+        }
+        .onChange(of: runner.state) { _, newValue in
+            if newValue == .failed && runner.errorMessage != nil {
                 showingError = true
             }
         }
+        .onChange(of: serverAddress) { resetLatency() }
+        .onChange(of: port) { resetLatency() }
+        .onDisappear { latencyTask?.cancel() }
     }
 
     // MARK: - Configuration
 
     private var configurationCard: some View {
         VStack(spacing: 16) {
+            HStack {
+                Text("Configuration")
+                    .font(.headline)
+                Spacer()
+                presetsMenu
+            }
+
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Server Address")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    fieldLabel("Server Address")
                     HStack(spacing: 4) {
                         TextField("hostname or IP", text: $serverAddress)
                             .textFieldStyle(.roundedBorder)
@@ -89,9 +126,7 @@ struct SpeedTestView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Port")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    fieldLabel("Port")
                     TextField("port", value: $port, format: .number.grouping(.never))
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 100)
@@ -100,120 +135,229 @@ struct SpeedTestView: View {
 
             HStack(spacing: 24) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Protocol")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    fieldLabel("Protocol")
                     Picker("Protocol", selection: $selectedProtocol) {
                         ForEach(TransportProtocol.allCases) { option in
                             Text(option.rawValue).tag(option)
                         }
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
                     .frame(width: 160)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Direction")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    fieldLabel("Direction")
                     Picker("Direction", selection: $selectedDirection) {
                         Label("Download", systemImage: "arrow.down").tag(TestDirection.download)
                         Label("Upload", systemImage: "arrow.up").tag(TestDirection.upload)
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
                     .frame(width: 220)
                 }
             }
 
             HStack(spacing: 24) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Parallel Streams")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    fieldLabel("Parallel Streams")
                     Stepper("\(streamCount)", value: $streamCount, in: 1...64)
                         .frame(width: 140)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Duration")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Stepper("\(Int(duration))s", value: $duration, in: 1...300, step: 5)
+                    fieldLabel("Duration")
+                    Stepper("\(Int(duration))s", value: $duration, in: 5...300, step: 5)
                         .frame(width: 140)
                 }
             }
 
             if selectedProtocol == .udp {
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Bandwidth Limit")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack(spacing: 8) {
-                            TextField("Rate", value: $bandwidthLimit, format: .number)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 100)
-                            Picker("Unit", selection: $bandwidthUnit) {
-                                Text("Mbps").tag("Mbps")
-                                Text("Gbps").tag("Gbps")
-                            }
-                            .labelsHidden()
-                            .frame(width: 80)
+                VStack(alignment: .leading, spacing: 4) {
+                    fieldLabel("Bandwidth Limit")
+                    HStack(spacing: 8) {
+                        TextField("Rate", value: $bandwidthLimit, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 100)
+                        Picker("Unit", selection: $bandwidthUnit) {
+                            Text("Mbps").tag("Mbps")
+                            Text("Gbps").tag("Gbps")
+                        }
+                        .labelsHidden()
+                        .frame(width: 80)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .cardStyle()
+    }
+
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    private var presetsMenu: some View {
+        Menu {
+            ForEach(presets) { preset in
+                Button("\(preset.name) — \(preset.address), \(preset.summary)") {
+                    apply(preset)
+                }
+            }
+            if !presets.isEmpty {
+                Divider()
+                Menu("Delete Preset") {
+                    ForEach(presets) { preset in
+                        Button(preset.name, role: .destructive) {
+                            deletePreset(preset)
                         }
                     }
                 }
             }
+            Divider()
+            Button("Save Current as Preset…") {
+                presetName = ""
+                showingSavePreset = true
+            }
+            .disabled(!profile.isValid)
+        } label: {
+            Label("Presets", systemImage: "bookmark")
         }
-        .padding()
-        .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
+        .menuStyle(.borderlessButton)
+        .fixedSize()
     }
 
-    // MARK: - Action Button
+    // MARK: - Actions Row
 
-    private var actionButton: some View {
-        Button {
-            if runner.isRunning {
-                runner.stop()
-            } else {
-                startTest()
+    private var actionButtons: some View {
+        VStack(spacing: 12) {
+            GlassEffectContainer(spacing: 16) {
+                HStack(spacing: 16) {
+                    Button {
+                        if runner.isRunning {
+                            runner.stop()
+                        } else {
+                            runner.start(profile: profile)
+                        }
+                    } label: {
+                        Label(
+                            runner.isRunning ? "Stop Test" : "Start Test",
+                            systemImage: runner.isRunning ? "stop.fill" : "play.fill"
+                        )
+                        .font(.headline)
+                        .frame(width: 160)
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(runner.isRunning ? .red : .accentColor)
+                    .disabled(!runner.isRunning && !profile.isValid)
+
+                    Button {
+                        measureLatency()
+                    } label: {
+                        Label("Test Latency", systemImage: "waveform.path.ecg")
+                            .font(.headline)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.glass)
+                    .disabled(runner.isRunning || !profile.isValid || latencyState == .measuring)
+                }
+                .controlSize(.large)
             }
-        } label: {
-            Label(
-                runner.isRunning ? "Stop Test" : "Start Test",
-                systemImage: runner.isRunning ? "stop.fill" : "play.fill"
-            )
-            .font(.headline)
-            .frame(maxWidth: 280)
-            .padding(.vertical, 4)
+
+            latencyReadout
         }
-        .controlSize(.large)
-        .buttonStyle(.borderedProminent)
-        .tint(runner.isRunning ? .red : .accentColor)
-        .disabled(!runner.isRunning && !isInputValid)
+    }
+
+    @ViewBuilder
+    private var latencyReadout: some View {
+        switch latencyState {
+        case .idle:
+            EmptyView()
+        case .measuring:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Measuring latency…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        case .failed:
+            Label("Couldn't connect to \(profile.trimmedAddress):\(profile.port, format: .number.grouping(.never))", systemImage: "exclamationmark.triangle")
+                .font(.subheadline)
+                .foregroundStyle(.orange)
+        case .result(let latency):
+            HStack(spacing: 12) {
+                Text(String(format: "%.1f ms avg", latency.avgMs))
+                    .fontWeight(.semibold)
+                Text(String(format: "min %.1f · max %.1f · jitter %.1f ms", latency.minMs, latency.maxMs, latency.jitterMs))
+                    .foregroundStyle(.secondary)
+                if latency.lossPercent > 0 {
+                    Text(String(format: "%.0f%% lost", latency.lossPercent))
+                        .foregroundStyle(.orange)
+                }
+            }
+            .font(.subheadline.monospacedDigit())
+        }
     }
 
     // MARK: - Results
 
     private var resultsSection: some View {
-        VStack(spacing: 20) {
-            speedDisplay
+        let shown = runner.activeProfile ?? profile
+        return VStack(spacing: 20) {
+            if runner.isRunning {
+                progressSection
+            }
+
+            speedDisplay(for: shown)
 
             ThroughputChartView(
                 dataPoints: runner.dataPoints,
-                lineColor: selectedDirection.color
+                lineColor: shown.direction.color
             )
-            .padding()
-            .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
+            .cardStyle()
 
-            statsGrid
+            statsGrid(for: shown)
         }
     }
 
-    private var speedDisplay: some View {
+    private var progressSection: some View {
+        VStack(spacing: 6) {
+            if let progress = runner.progress {
+                ProgressView(value: progress)
+            } else {
+                ProgressView()
+                    .progressViewStyle(.linear)
+            }
+
+            HStack {
+                if runner.progress != nil {
+                    Text("\(clock(runner.elapsedTime)) of \(clock(runner.testDuration))")
+                    Spacer()
+                    Text("\(clock(runner.remainingTime)) left · ETA \(Date().addingTimeInterval(runner.remainingTime).formatted(date: .omitted, time: .standard))")
+                } else {
+                    Text(runner.stateDescription)
+                    Spacer()
+                    Text("\(clock(runner.testDuration)) test")
+                }
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+        }
+        .cardStyle()
+    }
+
+    private func clock(_ seconds: TimeInterval) -> String {
+        Duration.seconds(Int(seconds.rounded())).formatted(.time(pattern: .minuteSecond))
+    }
+
+    private func speedDisplay(for shown: TestProfile) -> some View {
         VStack(spacing: 8) {
-            Image(systemName: selectedDirection.symbol)
+            Image(systemName: shown.direction.symbol)
                 .font(.system(size: 28))
-                .foregroundStyle(selectedDirection.color)
+                .foregroundStyle(shown.direction.color)
 
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text(runner.formattedCurrentSpeed)
@@ -232,96 +376,75 @@ struct SpeedTestView: View {
                     .foregroundStyle(runner.isRunning ? .primary : .secondary)
                 Text("·")
                     .foregroundStyle(.secondary)
-                Text("\(selectedProtocol.rawValue) · \(streamCount) stream\(streamCount == 1 ? "" : "s")")
+                Text("\(shown.transport.rawValue) · \(shown.streams) stream\(shown.streams == 1 ? "" : "s")")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 20)
-        .frame(maxWidth: .infinity)
-        .glassEffect(in: .rect(cornerRadius: 20))
+        .heroStyle()
     }
 
-    private var statsGrid: some View {
-        HStack(spacing: 0) {
-            statItem(title: "Duration", value: String(format: "%.1fs", runner.elapsedTime), icon: "clock")
+    private func statsGrid(for shown: TestProfile) -> some View {
+        StatRow {
+            StatTile(title: "Elapsed", value: String(format: "%.1fs", runner.elapsedTime), icon: "clock")
             Divider().frame(height: 44)
-            statItem(title: "Transferred", value: runner.formattedBytes, icon: "arrow.left.arrow.right")
-            if selectedProtocol == .udp {
+            StatTile(title: "Transferred", value: runner.formattedBytes, icon: "arrow.left.arrow.right")
+            Divider().frame(height: 44)
+            if shown.transport == .udp {
+                StatTile(title: "Jitter", value: String(format: "%.2f ms", runner.lastJitter), icon: "waveform.path")
                 Divider().frame(height: 44)
-                statItem(title: "Jitter", value: String(format: "%.2f ms", runner.lastJitter), icon: "waveform.path")
-                Divider().frame(height: 44)
-                statItem(title: "Loss", value: String(format: "%.1f%%", runner.packetLossPercent), icon: "exclamationmark.triangle")
+                StatTile(title: "Loss", value: String(format: "%.1f%%", runner.packetLossPercent), icon: "exclamationmark.triangle")
             } else {
+                StatTile(title: "RTT", value: String(format: "%.1f ms", runner.lastRtt), icon: "arrow.left.arrow.right.circle")
                 Divider().frame(height: 44)
-                statItem(title: "RTT", value: String(format: "%.1f ms", runner.lastRtt), icon: "arrow.left.arrow.right.circle")
-                Divider().frame(height: 44)
-                statItem(title: "Avg Speed", value: formatSpeed(runner.averageThroughputMbps), icon: "gauge.with.dots.needle.50percent")
+                StatTile(title: "Avg Speed", value: formatSpeed(runner.averageThroughputMbps), icon: "gauge.with.dots.needle.50percent")
             }
         }
-        .padding()
-        .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
     }
 
-    private func statItem(title: String, value: String, icon: String) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.headline.monospacedDigit())
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+    // MARK: - Latency
+
+    private func measureLatency() {
+        latencyTask?.cancel()
+        latencyState = .measuring
+        let target = profile
+        latencyTask = Task {
+            let outcome = await LatencyProbe.measure(host: target.trimmedAddress, port: target.port)
+            guard !Task.isCancelled else { return }
+            latencyState = outcome.map(LatencyState.result) ?? .failed
         }
-        .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Actions
-
-    private var isInputValid: Bool {
-        !serverAddress.trimmingCharacters(in: .whitespaces).isEmpty
-            && (1...65535).contains(port)
-            && (selectedProtocol == .tcp || (bandwidthLimit.isFinite && bandwidthLimit > 0))
+    private func resetLatency() {
+        latencyTask?.cancel()
+        latencyState = .idle
     }
 
-    private var bandwidthBitsPerSecond: UInt64 {
-        let mbps = bandwidthUnit == "Gbps" ? bandwidthLimit * 1000 : bandwidthLimit
-        let bps = mbps * 1_000_000
-        guard bps.isFinite, bps > 0 else { return 0 }
-        return UInt64(min(bps, Double(UInt64.max / 2)))
+    // MARK: - Presets
+
+    private func apply(_ preset: TestProfile) {
+        serverAddress = preset.address
+        port = preset.port
+        selectedProtocol = preset.transport
+        selectedDirection = preset.direction
+        streamCount = preset.streams
+        duration = preset.duration
+        bandwidthLimit = preset.bandwidthLimit
+        bandwidthUnit = preset.bandwidthUnit
     }
 
-    private func startTest() {
-        runner.startClient(
-            address: serverAddress.trimmingCharacters(in: .whitespaces),
-            port: port,
-            protocolType: selectedProtocol,
-            direction: selectedDirection,
-            streams: streamCount,
-            duration: duration,
-            rate: selectedProtocol == .udp ? bandwidthBitsPerSecond : nil
-        )
+    private func savePreset() {
+        let name = presetName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        var preset = profile
+        preset.name = name
+        var list = presets.filter { $0.name != name }
+        list.append(preset)
+        presetsData = TestProfile.encodeList(list)
     }
 
-    private func saveResult() {
-        let result = TestResult(
-            serverAddress: serverAddress.trimmingCharacters(in: .whitespaces),
-            port: port,
-            transport: selectedProtocol,
-            direction: selectedDirection,
-            streamCount: streamCount,
-            testDuration: duration
-        )
-        result.averageThroughputMbps = runner.averageThroughputMbps
-        result.maxThroughputMbps = runner.maxThroughputMbps
-        result.totalBytes = runner.totalBytesTransferred
-        result.jitter = runner.lastJitter
-        result.packetLossPercent = runner.packetLossPercent
-        result.rttMs = runner.lastRtt
-        result.dataPoints = runner.dataPoints
-        result.status = "completed"
-        modelContext.insert(result)
+    private func deletePreset(_ preset: TestProfile) {
+        presetsData = TestProfile.encodeList(presets.filter { $0.id != preset.id })
     }
-
 }

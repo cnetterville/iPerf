@@ -6,6 +6,18 @@ enum SidebarItem: Hashable {
     case speedTest
     case serverMode
     case result(TestResult)
+    case compare(TestResult, TestResult)
+}
+
+struct DeleteResultActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var deleteResultAction: (() -> Void)? {
+        get { self[DeleteResultActionKey.self] }
+        set { self[DeleteResultActionKey.self] = newValue }
+    }
 }
 
 struct ContentView: View {
@@ -26,7 +38,14 @@ struct ContentView: View {
             $0.serverAddress.lowercased().contains(needle)
                 || $0.protocolName.lowercased().contains(needle)
                 || $0.direction.lowercased().contains(needle)
+                || $0.notes.lowercased().contains(needle)
+                || $0.tags.lowercased().contains(needle)
         }
+    }
+
+    private var deleteSelectedAction: (() -> Void)? {
+        guard case .result(let selected) = selectedItem else { return nil }
+        return { delete(selected) }
     }
 
     private var groupedResults: [(title: String, results: [TestResult])] {
@@ -56,6 +75,12 @@ struct ContentView: View {
             sidebar
         } detail: {
             detailView
+        }
+        .focusedSceneValue(\.deleteResultAction, deleteSelectedAction)
+        .onChange(of: testRunner.state) { _, newValue in
+            guard newValue == .completed, let result = testRunner.makeResult() else { return }
+            modelContext.insert(result)
+            Task { await NotificationManager.notifyTestCompleted(result) }
         }
     }
 
@@ -95,12 +120,15 @@ struct ContentView: View {
                             historyRow(result)
                                 .tag(SidebarItem.result(result))
                                 .contextMenu {
-                                    Button("Delete", role: .destructive) {
-                                        if case .result(let selected) = selectedItem, selected == result {
-                                            selectedItem = .speedTest
+                                    Button("Run Again") { runAgain(result) }
+                                        .disabled(testRunner.isRunning)
+                                    if case .result(let selected) = selectedItem, selected != result {
+                                        Button("Compare with Selected Result") {
+                                            selectedItem = .compare(selected, result)
                                         }
-                                        modelContext.delete(result)
                                     }
+                                    Divider()
+                                    Button("Delete", role: .destructive) { delete(result) }
                                 }
                         }
                     }
@@ -154,7 +182,9 @@ struct ContentView: View {
         case .serverMode:
             ServerModeView(runner: serverRunner)
         case .result(let result):
-            TestDetailView(result: result)
+            TestDetailView(result: result, canRunAgain: !testRunner.isRunning, onRunAgain: runAgain)
+        case .compare(let first, let second):
+            CompareView(first: first, second: second)
         case nil:
             ContentUnavailableView(
                 "No Selection",
@@ -191,6 +221,36 @@ struct ContentView: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
+    }
+
+    private func delete(_ result: TestResult) {
+        switch selectedItem {
+        case .result(let selected) where selected == result:
+            selectedItem = .speedTest
+        case .compare(let first, let second) where first == result || second == result:
+            selectedItem = .speedTest
+        default:
+            break
+        }
+        modelContext.delete(result)
+    }
+
+    private func runAgain(_ result: TestResult) {
+        guard !testRunner.isRunning else { return }
+        let stored = TestProfile.current
+        let profile = TestProfile(
+            address: result.serverAddress,
+            port: result.port,
+            transport: result.transport,
+            direction: result.directionKind,
+            streams: result.streamCount,
+            duration: result.testDuration,
+            bandwidthLimit: stored.bandwidthLimit,
+            bandwidthUnit: stored.bandwidthUnit
+        )
+        profile.store()
+        selectedItem = .speedTest
+        testRunner.start(profile: profile)
     }
 
     private func exportAll(as format: ExportFormat) {

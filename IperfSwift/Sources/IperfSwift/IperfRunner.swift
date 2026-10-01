@@ -108,10 +108,35 @@ public class IperfRunner {
         // Calculate sum/average over streams
         result.evaulate()
         
+        if configuration.role == .server {
+            result.peerAddress = IperfRunner.peerAddress(ofSocket: runningTest.ctrl_sck)
+        }
+        
         onReporterFunction(result)
     }
     
     // MARK: Private methods
+    private static func peerAddress(ofSocket socket: Int32) -> String? {
+        guard socket >= 0 else { return nil }
+        var storage = sockaddr_storage()
+        var length = socklen_t(MemoryLayout<sockaddr_storage>.size)
+        let status = withUnsafeMutablePointer(to: &storage) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { getpeername(socket, $0, &length) }
+        }
+        guard status == 0 else { return nil }
+        
+        var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+        let nameStatus = withUnsafePointer(to: &storage) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                getnameinfo($0, length, &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST)
+            }
+        }
+        guard nameStatus == 0 else { return nil }
+        
+        let address = String(cString: host)
+        return address.hasPrefix("::ffff:") ? String(address.dropFirst(7)) : address
+    }
+    
     private func applyConfiguration() {
         guard let configuration = configuration else {
             return
