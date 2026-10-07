@@ -3,9 +3,29 @@ import SwiftData
 
 @main
 struct iPerfApp: App {
-    @State private var testRunner = IperfTestRunner()
+    @State private var testRunner: IperfTestRunner
     @State private var serverRunner = IperfTestRunner()
     @AppStorage(ClientPrefs.hideDockIcon) private var hideDockIcon = false
+
+    private let container: ModelContainer
+
+    init() {
+        let container: ModelContainer
+        do {
+            container = try ModelContainer(for: TestResult.self)
+        } catch {
+            fatalError("Couldn't open the results store: \(error)")
+        }
+        self.container = container
+
+        // Saving lives here, not in a view, so results persist even with no window open.
+        let runner = IperfTestRunner()
+        runner.onTestCompleted = { result in
+            container.mainContext.insert(result)
+            Task { await NotificationManager.notifyTestCompleted(result) }
+        }
+        _testRunner = State(initialValue: runner)
+    }
 
     private var serverActive: Bool {
         serverRunner.isRunning && serverRunner.isServerMode
@@ -29,7 +49,7 @@ struct iPerfApp: App {
                     }
                 }
         }
-        .modelContainer(for: TestResult.self)
+        .modelContainer(container)
         .defaultSize(width: 900, height: 650)
         .commands {
             TestCommands(runner: testRunner)

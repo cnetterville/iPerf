@@ -77,11 +77,6 @@ struct ContentView: View {
             detailView
         }
         .focusedSceneValue(\.deleteResultAction, deleteSelectedAction)
-        .onChange(of: testRunner.state) { _, newValue in
-            guard newValue == .completed, let result = testRunner.makeResult() else { return }
-            modelContext.insert(result)
-            Task { await NotificationManager.notifyTestCompleted(result) }
-        }
     }
 
     private var sidebar: some View {
@@ -256,10 +251,10 @@ struct ContentView: View {
     private func exportAll(as format: ExportFormat) {
         let content: String
         switch format {
-        case .csv:
-            content = TestResult.csvHeader + "\n" + testResults.map { $0.toCSVRow() }.joined(separator: "\n")
         case .json:
             content = "[" + testResults.map { $0.toJSON() }.joined(separator: ",\n") + "]"
+        default:
+            content = TestResult.csvHeader + "\n" + testResults.map { $0.toCSVRow() }.joined(separator: "\n")
         }
         exportDocument = TestExportDocument(content: content, format: format)
         showingExporter = true

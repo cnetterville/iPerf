@@ -25,6 +25,9 @@ final class IperfTestRunner {
     var testDuration: TimeInterval = 0
     var connectedClient: String?
 
+    /// Called once when a client test finishes with data, whether or not a window is open.
+    @ObservationIgnored var onTestCompleted: ((TestResult) -> Void)?
+
     private var runner: IperfRunner?
     private var runnerID = UUID()
     private var testStart: Date?
@@ -186,7 +189,7 @@ final class IperfTestRunner {
         testStart = nil
     }
 
-    private func handleResult(_ result: IperfIntervalResult) {
+    func handleResult(_ result: IperfIntervalResult) {
         let mbps = result.throughput.Mbps
         currentThroughputMbps = mbps
         totalBytesTransferred += Int(result.totalBytes)
@@ -226,7 +229,7 @@ final class IperfTestRunner {
         }
     }
 
-    private func handleError(_ error: IperfError) {
+    func handleError(_ error: IperfError) {
         guard !stoppedByUser else { return }
         if isServerMode {
             scheduleServerRestart()
@@ -270,7 +273,7 @@ final class IperfTestRunner {
         }
     }
 
-    private func handleState(_ runnerState: IperfRunnerState) {
+    func handleState(_ runnerState: IperfRunnerState) {
         guard !stoppedByUser else { return }
         switch runnerState {
         case .running:
@@ -279,8 +282,12 @@ final class IperfTestRunner {
             if isServerMode {
                 scheduleServerRestart()
             } else {
+                guard state != .completed else { return }
                 isRunning = false
                 state = .completed
+                if let result = makeResult() {
+                    onTestCompleted?(result)
+                }
             }
         case .initialising:
             state = .initializing

@@ -8,13 +8,20 @@
 
 /* Begin PBXBuildFile section */
 		E93260DB2FF56FC300339FBB /* IperfSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E93260DA2FF56FC300339FBB /* IperfSwift */; };
+		E956D3C03076C079002A3EB0 /* IperfSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E956D3C13076C079002A3EB0 /* IperfSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		E956D3AB3076C079002A3EB0 /* iPerfTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iPerfTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9F468E72FA93D7B0067F238 /* iPerf.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iPerf.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		E956D3AC3076C079002A3EB0 /* iPerfTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = iPerfTests;
+			sourceTree = "<group>";
+		};
 		E9F468E92FA93D7B0067F238 /* iPerf */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = iPerf;
@@ -23,6 +30,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		E956D3A83076C079002A3EB0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E956D3C03076C079002A3EB0 /* IperfSwift in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E9F468E42FA93D7B0067F238 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -38,6 +53,7 @@
 			isa = PBXGroup;
 			children = (
 				E9F468E92FA93D7B0067F238 /* iPerf */,
+				E956D3AC3076C079002A3EB0 /* iPerfTests */,
 				E9F468E82FA93D7B0067F238 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -46,6 +62,7 @@
 			isa = PBXGroup;
 			children = (
 				E9F468E72FA93D7B0067F238 /* iPerf.app */,
+				E956D3AB3076C079002A3EB0 /* iPerfTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -53,6 +70,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		E956D3AA3076C079002A3EB0 /* iPerfTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E956D3AF3076C079002A3EB0 /* Build configuration list for PBXNativeTarget "iPerfTests" */;
+			buildPhases = (
+				E956D3A73076C079002A3EB0 /* Sources */,
+				E956D3A83076C079002A3EB0 /* Frameworks */,
+				E956D3A93076C079002A3EB0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E956D3AC3076C079002A3EB0 /* iPerfTests */,
+			);
+			name = iPerfTests;
+			packageProductDependencies = (
+				E956D3C13076C079002A3EB0 /* IperfSwift */,
+			);
+			productName = iPerfTests;
+			productReference = E956D3AB3076C079002A3EB0 /* iPerfTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		E9F468E62FA93D7B0067F238 /* iPerf */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E9F468F22FA93D7C0067F238 /* Build configuration list for PBXNativeTarget "iPerf" */;
@@ -83,9 +123,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2640;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
+					E956D3AA3076C079002A3EB0 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					E9F468E62FA93D7B0067F238 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
@@ -109,11 +152,19 @@
 			projectRoot = "";
 			targets = (
 				E9F468E62FA93D7B0067F238 /* iPerf */,
+				E956D3AA3076C079002A3EB0 /* iPerfTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		E956D3A93076C079002A3EB0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E9F468E52FA93D7B0067F238 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,6 +175,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		E956D3A73076C079002A3EB0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E9F468E32FA93D7B0067F238 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -134,6 +192,46 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		E956D3B03076C079002A3EB0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.iPerfTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iPerf.app/Contents/MacOS/iPerf";
+			};
+			name = Debug;
+		};
+		E956D3B13076C079002A3EB0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.iPerfTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iPerf.app/Contents/MacOS/iPerf";
+			};
+			name = Release;
+		};
 		E9F468F02FA93D7C0067F238 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -285,6 +383,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "iPerf scans your local network for iperf3 servers and measures latency to them.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -329,6 +428,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "iPerf scans your local network for iperf3 servers and measures latency to them.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -349,6 +449,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		E956D3AF3076C079002A3EB0 /* Build configuration list for PBXNativeTarget "iPerfTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E956D3B03076C079002A3EB0 /* Debug */,
+				E956D3B13076C079002A3EB0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E9F468E22FA93D7B0067F238 /* Build configuration list for PBXProject "iPerf" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -378,6 +487,10 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		E93260DA2FF56FC300339FBB /* IperfSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IperfSwift;
+		};
+		E956D3C13076C079002A3EB0 /* IperfSwift */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IperfSwift;
 		};

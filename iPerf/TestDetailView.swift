@@ -73,6 +73,13 @@ struct TestDetailView: View {
                         exportDocument = TestExportDocument(content: result.toJSON(), format: .json)
                         showingExporter = true
                     }
+                    Divider()
+                    Button("Export Image (PNG)...") {
+                        exportShareCard(.png)
+                    }
+                    Button("Export Report (PDF)...") {
+                        exportShareCard(.pdf)
+                    }
                 } label: {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }
@@ -81,9 +88,16 @@ struct TestDetailView: View {
         .fileExporter(
             isPresented: $showingExporter,
             document: exportDocument,
-            contentType: exportDocument?.format == .json ? .json : .commaSeparatedText,
+            contentType: exportDocument?.format.contentType ?? .commaSeparatedText,
             defaultFilename: "iperf-result-\(result.date.formatted(.iso8601.year().month().day()))"
         ) { _ in }
+    }
+
+    private func exportShareCard(_ format: ExportFormat) {
+        let data = format == .png ? ShareRenderer.pngData(for: result) : ShareRenderer.pdfData(for: result)
+        guard let data else { return }
+        exportDocument = TestExportDocument(data: data, format: format)
+        showingExporter = true
     }
 
     private var summaryCard: some View {
@@ -248,26 +262,40 @@ struct TrendChartView: View {
 }
 
 enum ExportFormat {
-    case csv, json
+    case csv, json, png, pdf
+
+    var contentType: UTType {
+        switch self {
+        case .csv: .commaSeparatedText
+        case .json: .json
+        case .png: .png
+        case .pdf: .pdf
+        }
+    }
 }
 
 struct TestExportDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.commaSeparatedText, .json] }
+    static var readableContentTypes: [UTType] { [.commaSeparatedText, .json, .png, .pdf] }
 
-    let content: String
+    let data: Data
     let format: ExportFormat
 
     init(content: String, format: ExportFormat) {
-        self.content = content
+        self.data = Data(content.utf8)
+        self.format = format
+    }
+
+    init(data: Data, format: ExportFormat) {
+        self.data = data
         self.format = format
     }
 
     init(configuration: ReadConfiguration) throws {
-        content = ""
+        data = Data()
         format = .csv
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        FileWrapper(regularFileWithContents: Data(content.utf8))
+        FileWrapper(regularFileWithContents: data)
     }
 }

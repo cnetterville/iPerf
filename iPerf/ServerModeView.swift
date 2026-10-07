@@ -6,6 +6,8 @@ struct ServerModeView: View {
 
     @State private var addresses: [LocalAddress] = []
     @State private var copiedID: String?
+    @State private var clientLatency = LatencyState.idle
+    @State private var pingTask: Task<Void, Never>?
 
     var body: some View {
         ScrollView {
@@ -60,6 +62,10 @@ struct ServerModeView: View {
                         Divider().frame(height: 44)
                         StatTile(title: "Transferred", value: runner.formattedBytes, icon: "arrow.left.arrow.right")
                         Divider().frame(height: 44)
+                        if runner.averageRttMs > 0 {
+                            StatTile(title: "RTT", value: String(format: "%.1f ms", runner.averageRttMs), icon: "arrow.left.arrow.right.circle")
+                            Divider().frame(height: 44)
+                        }
                         StatTile(title: "Avg Speed", value: formatSpeed(runner.averageThroughputMbps), icon: "gauge.with.dots.needle.50percent")
                     }
                 }
@@ -70,6 +76,11 @@ struct ServerModeView: View {
         .navigationTitle("Server Mode")
         .onAppear { refreshAddresses() }
         .onChange(of: runner.isRunning) { refreshAddresses() }
+        .onChange(of: runner.connectedClient) {
+            pingTask?.cancel()
+            clientLatency = .idle
+        }
+        .onDisappear { pingTask?.cancel() }
     }
 
     // MARK: - Sections
@@ -86,9 +97,26 @@ struct ServerModeView: View {
             }
 
             if let client = runner.connectedClient {
-                Label("Connected client: \(client)", systemImage: "person.crop.circle.badge.checkmark")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.green)
+                HStack(spacing: 12) {
+                    Label("Connected client: \(client)", systemImage: "person.crop.circle.badge.checkmark")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.green)
+                    Button {
+                        pingClient(client)
+                    } label: {
+                        Label("Ping", systemImage: "waveform.path.ecg")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(clientLatency == .measuring)
+                    .help("Measure round-trip time to this client")
+                }
+                LatencyReadout(state: clientLatency)
+                if case .result = clientLatency, runner.currentThroughputMbps > 0 {
+                    Text("Measured while a test is running, so it includes load.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -181,6 +209,17 @@ struct ServerModeView: View {
         Task {
             try? await Task.sleep(for: .seconds(1.5))
             if copiedID == id { copiedID = nil }
+        }
+    }
+
+    // A client rarely listens on a port, so a refused connection (RST) is accepted as a reply.
+    private func pingClient(_ client: String) {
+        pingTask?.cancel()
+        clientLatency = .measuring
+        pingTask = Task {
+            let outcome = await LatencyProbe.measure(host: client, port: 9, acceptRefused: true)
+            guard !Task.isCancelled else { return }
+            clientLatency = LatencyState(outcome, failure: "No reply from \(client). Its firewall may be blocking probes.")
         }
     }
 

@@ -4,6 +4,7 @@ import Charts
 struct ThroughputChartView: View {
     let dataPoints: [DataPoint]
     var lineColor: Color = .blue
+    var showsControls = true
 
     @State private var selectedTime: Double?
     @State private var showStreams = false
@@ -53,7 +54,7 @@ struct ThroughputChartView: View {
         let selected = selectedTime.flatMap(nearestPoint(to:))
 
         VStack(alignment: .trailing, spacing: 8) {
-            if hasStreamData {
+            if showsControls && hasStreamData {
                 Toggle("Show streams", isOn: $showStreams)
                     .toggleStyle(.checkbox)
                     .font(.caption)

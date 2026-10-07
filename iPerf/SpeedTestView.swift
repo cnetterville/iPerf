@@ -19,12 +19,8 @@ struct SpeedTestView: View {
     @State private var presetName = ""
     @State private var latencyState = LatencyState.idle
     @State private var latencyTask: Task<Void, Never>?
+    @State private var showingDiscovery = false
     @Query(sort: \TestResult.date, order: .reverse) private var testResults: [TestResult]
-
-    private enum LatencyState: Equatable {
-        case idle, measuring, failed
-        case result(LatencyResult)
-    }
 
     private var profile: TestProfile {
         TestProfile(
@@ -121,6 +117,20 @@ struct SpeedTestView: View {
                             }
                             .menuStyle(.borderlessButton)
                             .frame(width: 24)
+                        }
+                        Button {
+                            showingDiscovery = true
+                        } label: {
+                            Image(systemName: "dot.radiowaves.left.and.right")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Find iperf3 servers on the local network")
+                        .popover(isPresented: $showingDiscovery, arrowEdge: .bottom) {
+                            DiscoveryView(port: port) { address in
+                                serverAddress = address
+                                showingDiscovery = false
+                            }
                         }
                     }
                 }
@@ -267,38 +277,7 @@ struct SpeedTestView: View {
                 .controlSize(.large)
             }
 
-            latencyReadout
-        }
-    }
-
-    @ViewBuilder
-    private var latencyReadout: some View {
-        switch latencyState {
-        case .idle:
-            EmptyView()
-        case .measuring:
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Measuring latency…")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        case .failed:
-            Label("Couldn't connect to \(profile.trimmedAddress):\(profile.port, format: .number.grouping(.never))", systemImage: "exclamationmark.triangle")
-                .font(.subheadline)
-                .foregroundStyle(.orange)
-        case .result(let latency):
-            HStack(spacing: 12) {
-                Text(String(format: "%.1f ms avg", latency.avgMs))
-                    .fontWeight(.semibold)
-                Text(String(format: "min %.1f · max %.1f · jitter %.1f ms", latency.minMs, latency.maxMs, latency.jitterMs))
-                    .foregroundStyle(.secondary)
-                if latency.lossPercent > 0 {
-                    Text(String(format: "%.0f%% lost", latency.lossPercent))
-                        .foregroundStyle(.orange)
-                }
-            }
-            .font(.subheadline.monospacedDigit())
+            LatencyReadout(state: latencyState)
         }
     }
 
@@ -412,7 +391,8 @@ struct SpeedTestView: View {
         latencyTask = Task {
             let outcome = await LatencyProbe.measure(host: target.trimmedAddress, port: target.port)
             guard !Task.isCancelled else { return }
-            latencyState = outcome.map(LatencyState.result) ?? .failed
+            let failure = "Couldn't connect to \(target.trimmedAddress):\(target.port.formatted(.number.grouping(.never)))"
+            latencyState = LatencyState(outcome, failure: failure)
         }
     }
 
